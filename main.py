@@ -20,8 +20,6 @@ indian_top_250_movies = IMDB.get_top250_indian_movies()
 
 all_reviews = {}
 
-print('all movies size:', len(movies))
-
 final_movies = []
 
 # get movies starting with letter f
@@ -45,9 +43,13 @@ for indian_top_movie in indian_top_250_movies:
     movie_kind = movie_data['kind']
     if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
         final_movies.append(indian_top_movie)
-
+# LOG
+print('all movies size:', len(movies))
+print('all indian top movies size:', len(indian_top_250_movies))
+print('all top movies size:', len(top_250_movies))
+print()
 print('length of final movies:', len(final_movies))
-
+print()
 # get reviews for all movies extracted
 for movie in final_movies:
     reviews = IMDB.get_movie_reviews(movie.movieID)
