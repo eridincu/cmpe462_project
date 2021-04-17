@@ -2,6 +2,7 @@ from imdb import IMDb
 import re
 import json
 
+# BUNA GEREK KALMADI
 # C:\Users\merdi\anaconda3\lib\site-packages\imdb\parser\http\__init__.py -> 
 # line 539
 # paste:
@@ -11,6 +12,9 @@ import json
 # line 1603
 # paste:
 #  extractor=Path('.//a[@class="title"]//text()')###
+
+# movieparser 1634   if review.get('rating') and len(review['rating']) <= 2:
+
 
 IMDB = IMDb()
 
@@ -23,12 +27,12 @@ all_reviews = {}
 final_movies = []
 
 # get movies starting with letter f
-for movie in movies:
-    movie_data = movie.data
-    movie_title = movie_data['title']
-    movie_kind = movie_data['kind']
-    if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
-        final_movies.append(movie)
+# for movie in movies:
+#     movie_data = movie.data
+#     movie_title = movie_data['title']
+#     movie_kind = movie_data['kind']
+#     if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
+#         final_movies.append(movie)
 
 for top_movie in top_250_movies:
     movie_data = top_movie.data
@@ -37,15 +41,15 @@ for top_movie in top_250_movies:
     if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
         final_movies.append(top_movie)
 
-for indian_top_movie in indian_top_250_movies:
-    indian_top_movie_data = indian_top_movie.data
-    movie_title = movie_data['title']
-    movie_kind = movie_data['kind']
-    if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
-        final_movies.append(indian_top_movie)
+# for indian_top_movie in indian_top_250_movies:
+#     indian_top_movie_data = indian_top_movie.data
+#     movie_title = movie_data['title']
+#     movie_kind = movie_data['kind']
+#     if (bool(re.match('f', movie_title, re.I)) and movie_kind == 'movie'):
+#         final_movies.append(indian_top_movie)
 # LOG
-print('all movies size:', len(movies))
-print('all indian top movies size:', len(indian_top_250_movies))
+# print('all movies size:', len(movies))
+# print('all indian top movies size:', len(indian_top_250_movies))
 print('all top movies size:', len(top_250_movies))
 print()
 print('length of final movies:', len(final_movies))
@@ -53,9 +57,7 @@ print()
 # get reviews for all movies extracted
 for movie in final_movies:
     reviews = IMDB.get_movie_reviews(movie.movieID)
-    # for debugging
-    cont = reviews['review_base']
-    reviews = reviews['review']
+  
     try:
         all_reviews[movie.data['title']] = reviews['data']['reviews']
     except KeyError:
@@ -68,6 +70,6 @@ for movie_title in all_reviews:
 print('total review count:', total_length)
 
 # dump to json file
-with open('reviews.json', 'w') as f:
+with open('deneme.json', 'w') as f:
     json_reviews = json.dumps(all_reviews)
     f.write(json_reviews)
