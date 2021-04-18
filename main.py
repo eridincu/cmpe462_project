@@ -1,7 +1,7 @@
 from imdb import IMDb
 import re
 import json
-
+import random
 
 # C:\Users\merdi\anaconda3\lib\site-packages\imdb\parser\http\movieParser.py
 # line 1603
@@ -24,7 +24,7 @@ movies.extend(movies_f)
 movies.extend(top_250_movies)
 movies.extend(indian_top_250_movies)
 
-all_reviews = dict()
+all_reviews = list()
 final_movies = list()
 movie_titles = set()
 # get movies starting with letter f
@@ -46,15 +46,12 @@ for movie in final_movies:
     reviews = IMDB.get_movie_reviews(movie.movieID)
   
     try:
-        all_reviews[movie.data['title']] = reviews['data']['reviews']
+        all_reviews.extend(reviews['data']['reviews'])
     except KeyError:
         print('No reviews available for the film:', movie)
 
-# get total number of reviews
-total_length = 0
-for movie_title in all_reviews:
-    total_length = total_length + len(all_reviews[movie_title])
-print('total review count:', total_length)
+# print total number of reviews
+print('total review count:', len(all_reviews))
 
 review_count = 1
 p = 0
@@ -62,13 +59,15 @@ n = 0
 z = 0
 unavailable = 0
 
-for movie_title in all_reviews:
-    for review in all_reviews[movie_title]:
+# shuffle the reviews
+random.shuffle(all_reviews)
+
+for review in all_reviews:
+    try:
         # create filename with review type tag
         rating = review["rating"]
         if rating is None:
             unavailable += 1
-            print("One of", movie_title, "reviews doesn't have a rating")
             continue
 
         file_name = "F_" + str(review_count) + "_"
@@ -95,12 +94,14 @@ for movie_title in all_reviews:
         # init file data
         title = review["title"] + "\n"
         content = review["content"]
-        with open('./reviews/' + file_name, 'w') as f:
+
+        with open('./reviews/' + file_name, 'w', encoding='utf-8') as f:
             f.write(title)
             f.write(content)
-        
-        review_count += 1
 
+        review_count += 1
+    except:
+        continue
 
 print('all files are created!\n')
 print('positive:', p)
