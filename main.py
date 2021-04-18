@@ -95,7 +95,7 @@ for movie_title in all_reviews:
         # init file data
         title = review["title"] + "\n"
         content = review["content"]
-        with open('./reviews/' + file_name, 'w') as f:
+        with open('./reviews/' + file_name, 'w', encoding = "utf-8") as f:
             f.write(title)
             f.write(content)
         
