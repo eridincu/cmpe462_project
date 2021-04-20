@@ -3,13 +3,20 @@ import re
 import json
 import random
 
+
 # C:\Users\merdi\anaconda3\lib\site-packages\imdb\parser\http\movieParser.py
-# line 1603
+# MovieParser:
+
+# 1-
+# DOMHTMLReviewsParser
+# Rule-key->title
 # paste:
 #  extractor=Path('.//a[@class="title"]//text()')###
 
-# movieparser 1634   if review.get('rating') and len(review['rating']) <= 2:
-# movieparser 1635   review['rating'] = int(review['rating'])
+# 2-
+# postprocess_data 
+# if review.get('rating') and len(review['rating']) <= 2:
+# review['rating'] = int(review['rating'])
 
 
 IMDB = IMDb()
@@ -60,6 +67,7 @@ z = 0
 unavailable = 0
 
 # shuffle the reviews
+random.seed(12)
 random.shuffle(all_reviews)
 
 for review in all_reviews:
@@ -95,7 +103,7 @@ for review in all_reviews:
         title = review["title"] + "\n"
         content = review["content"]
 
-        with open('./reviews/' + file_name, 'w', encoding = "utf-8") as f:
+        with open('./try/' + file_name, 'w', encoding = "utf-8") as f:
             f.write(title)
             f.write(content)
 
