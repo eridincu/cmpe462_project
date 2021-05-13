@@ -8,15 +8,30 @@ import re
 import json
 import io
 import nltk
+from nltk import tokenize
+from numpy.lib.function_base import vectorize
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
+
+from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer
+
+from sklearn.svm import LinearSVC
+from sklearn.naive_bayes import MultinomialNB
 
 training_data = []
 validation_data = []
 
 WNL = WordNetLemmatizer()
+
+class Data():
+    def __init__(self, header, content, rating):
+        self.header = header
+        self.content = content
+        self.rating = rating
 
 def nltk_tag_to_wordnet_tag(nltk_tag):
     if nltk_tag.startswith('J'):
@@ -45,81 +60,97 @@ def lemmatize_sentence(sentence):
             lemmatized_sentence.append(WNL.lemmatize(word, tag))
     return " ".join(lemmatized_sentence)
 
+def extract_data(directory_path):
+    data = []
+    for filename in os.listdir(directory_path):
+        with io.open(directory_path + '\\' + filename, "r", encoding="utf8") as f:
+            review = f.read()
+            
+            if len(review) > 0:
+                review = review.split('\n', 1)
+                #header = review[0]
+                content = review[0] + ' ' + review[1]
+                rating = filename[-5]
+
+                data.append(Data('header', content, rating))
+    return data
+
+def format_data(data):
+    # lemmatize the training data
+    for i in range(0, len(data)):
+        # Remove all the special characters
+        formatted_content = re.sub(r'\W', ' ', str(data[i].content))
+
+        # remove all single characters
+        formatted_content= re.sub(r'\s+[a-zA-Z]\s+', ' ', formatted_content)
+
+        # Remove single characters from the start
+        formatted_content = re.sub(r'\^[a-zA-Z]\s+', ' ', formatted_content) 
+
+        # Substituting multiple spaces with single space
+        formatted_content = re.sub(r'\s+', ' ', formatted_content, flags=re.I)
+
+        # Removing prefixed 'b'
+        formatted_content = re.sub(r'^b\s+', '', formatted_content)
+
+        # Converting to Lowercase
+        formatted_content = formatted_content.lower()
+
+        data[i].content = lemmatize_sentence(formatted_content)
+
 # extract the training data
-for filename in os.listdir('TRAIN'):
-    with io.open('TRAIN\\' + filename, "r", encoding="utf8") as f:
-        review = f.read()
-        
-        if len(review) > 0:
-            review = review.split('\n', 1)
-            #header = review[0]
-            content = review[0] + ' ' + review[1]
-            rating = filename[-5]
-
-            training_data.append({ 'header': 'header', 'content': content, 'rating': rating })
-
+training_data = extract_data('TRAIN')
 # extract the validation data
-for filename in os.listdir('VAL'):
-    with io.open('VAL\\' + filename, "r", encoding="utf8") as f:
-        review = f.read()
+validation_data = extract_data('VAL')
+# lemmatize the data
+format_data(training_data)
+format_data(validation_data)
 
-        if len(review) > 0:
-            review = review.split('\n', 1)
-            #header = review[0]
-            content =  review[0] + ' ' + review[1]
-            rating = filename[-5]
-
-            validation_data.append({ 'header': 'header', 'content': content, 'rating': rating })
-
-for i in range(0, len(training_data)):
-    # Remove all the special characters
-    formatted_content = re.sub(r'\W', ' ', str(training_data[i]['content']))
-
-    # remove all single characters
-    formatted_content= re.sub(r'\s+[a-zA-Z]\s+', ' ', formatted_content)
-
-    # Remove single characters from the start
-    formatted_content = re.sub(r'\^[a-zA-Z]\s+', ' ', formatted_content) 
-
-    # Substituting multiple spaces with single space
-    formatted_content = re.sub(r'\s+', ' ', formatted_content, flags=re.I)
-
-    # Removing prefixed 'b'
-    formatted_content = re.sub(r'^b\s+', '', formatted_content)
-
-    # Converting to Lowercase
-    formatted_content = formatted_content.lower()
-
-    training_data[i]['content'] = lemmatize_sentence(formatted_content)
-
-features_sentence = list()
+X_train = list()
+y_train = list()
+X_val = list()
+y_val = list()
 
 for data in training_data:
-    features_sentence.append(data['content'])
+    X_train.append(data.content)
+    y_train.append(data.rating)
+for data in validation_data:
+    X_val.append(data.content)
+    y_val.append(data.rating)
 
-vectorizer_1 = TfidfVectorizer (max_features=25, min_df=7, max_df=0.5, stop_words=stopwords.words('english'))
-vectorizer_2 = TfidfVectorizer (max_features=25, min_df=7, max_df=0.6, stop_words=stopwords.words('english'))
-vectorizer_3 = TfidfVectorizer (max_features=25, min_df=7, max_df=0.7, stop_words=stopwords.words('english'))
-vectorizer_4 = TfidfVectorizer (max_features=25, min_df=7, max_df=0.8, stop_words=stopwords.words('english'))
-vectorizer_5 = TfidfVectorizer (max_features=25, min_df=7, max_df=0.9, stop_words=stopwords.words('english'))
+tfidf_vectorizer = TfidfVectorizer (max_features=50, min_df=7, max_df=0.6, stop_words=stopwords.words('english'))
+ngram_vectorizer = CountVectorizer(ngram_range=(1,2), min_df=7, max_df=0.6, max_features=50, stop_words=stopwords.words('english'))
 
-processed_features_1 = vectorizer_1.fit_transform(features_sentence).toarray()
-processed_features_2 = vectorizer_2.fit_transform(features_sentence).toarray()
-processed_features_3 = vectorizer_3.fit_transform(features_sentence).toarray()
-processed_features_4 = vectorizer_4.fit_transform(features_sentence).toarray()
-processed_features_5 = vectorizer_5.fit_transform(features_sentence).toarray()
+processed_features_tfidf = tfidf_vectorizer.fit_transform(X_train).toarray()
+processed_features_count = ngram_vectorizer.fit_transform(X_train).toarray()
 
-feature_names_1 = vectorizer_1.get_feature_names()
-feature_names_2 = vectorizer_2.get_feature_names()
-feature_names_3 = vectorizer_3.get_feature_names()
-feature_names_4 = vectorizer_4.get_feature_names()
-feature_names_5 = vectorizer_5.get_feature_names()
+processed_validation_tfidf = tfidf_vectorizer.fit_transform(X_val).toarray()
+processed_validation_count = ngram_vectorizer.fit_transform(X_val).toarray()
 
-print('feature names_1:', feature_names_1)
-print('feature names_2:', feature_names_2)
-print('feature names_3:', feature_names_3)
-print('feature names_4:', feature_names_4)
-print('feature names_5:', feature_names_5)
+# Linear SVC
+for c in [0.001, 0.005, 0.01, 0.05, 0.1]:
+    print('NGRAM ACCURACIES')
+    SVM = LinearSVC(C=c, max_iter=10000)
+    SVM.fit(processed_features_count, y_train)
+    print ("Accuracy for C=%s: %s" 
+           % (c, accuracy_score(y_val, SVM.predict(processed_validation_count))))
+    print('TF/IDF ACCURACIES')
+    SVM = LinearSVC(C=c, max_iter=10000)
+    SVM.fit(processed_features_tfidf, y_train)
+    print ("Accuracy for C=%s: %s" 
+           % (c, accuracy_score(y_val, SVM.predict(processed_validation_tfidf))))
+    print()
+
+MNB = MultinomialNB()
+MNB.fit(processed_features_count, y_train)
+print ("Accuracy for Naive Bayes ngram: %s" 
+        % (accuracy_score(y_val, MNB.predict(processed_validation_count))))
+MNB.fit(processed_features_tfidf, y_train)
+print ("Accuracy for Naive Bayes tf/idf: %s" 
+        % (accuracy_score(y_val, MNB.predict(processed_validation_tfidf))))
+
+#print('feature names_1:', tfidf_vectorizer.get_feature_names())
+#print('feature names_2:', ngram_vectorizer.get_feature_names())
 #print(feature_names)
 
 #print(training_data)
