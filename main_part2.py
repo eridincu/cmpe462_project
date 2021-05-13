@@ -98,61 +98,85 @@ def format_data(data):
 
         data[i].content = lemmatize_sentence(formatted_content)
 
-# extract the training data
-training_data = extract_data('TRAIN')
-# extract the validation data
-validation_data = extract_data('VAL')
-# lemmatize the data
-format_data(training_data)
-format_data(validation_data)
 
-X_train = list()
-y_train = list()
-X_val = list()
-y_val = list()
+def write_to_txt(name, _list):
+    txt_file = open(name, "w")
+    for element in _list:
+        txt_file.write(element + "\n")
+    txt_file.close()
 
-for data in training_data:
-    X_train.append(data.content)
-    y_train.append(data.rating)
-for data in validation_data:
-    X_val.append(data.content)
-    y_val.append(data.rating)
 
-tfidf_vectorizer = TfidfVectorizer (max_features=50, min_df=7, max_df=0.6, stop_words=stopwords.words('english'))
-ngram_vectorizer = CountVectorizer(ngram_range=(1,2), min_df=7, max_df=0.6, max_features=50, stop_words=stopwords.words('english'))
+def read_from_txt(name):
+    txt_file = open(name, "r")
+    content_list = txt_file.readlines()
+    _list = list()
+    for element in content_list:
+        _list.append(element.strip())
+    return _list
+    
+    
+if __name__ == "__main__":
+    
+    # extract the training data
+    training_data = extract_data('TRAIN')
+    # extract the validation data
+    validation_data = extract_data('VAL')
+    # lemmatize the data
+    format_data(training_data)
+    format_data(validation_data)
 
-processed_features_tfidf = tfidf_vectorizer.fit_transform(X_train).toarray()
-processed_features_count = ngram_vectorizer.fit_transform(X_train).toarray()
+    X_train = list()
+    y_train = list()
+    X_val = list()
+    y_val = list()
 
-processed_validation_tfidf = tfidf_vectorizer.fit_transform(X_val).toarray()
-processed_validation_count = ngram_vectorizer.fit_transform(X_val).toarray()
+    for data in training_data:
+        X_train.append(data.content)
+        y_train.append(data.rating)
+    for data in validation_data:
+        X_val.append(data.content)
+        y_val.append(data.rating)
+    write_to_txt('x_train.txt', X_train)
+    write_to_txt('y_train.txt', y_train)
+    write_to_txt('x_val.txt', X_val)
+    write_to_txt('y_val.txt', y_val)
+    
 
-# Linear SVC
-for c in [0.001, 0.005, 0.01, 0.05, 0.1]:
-    print('NGRAM ACCURACIES')
-    SVM = LinearSVC(C=c, max_iter=10000)
-    SVM.fit(processed_features_count, y_train)
-    print ("Accuracy for C=%s: %s" 
-           % (c, accuracy_score(y_val, SVM.predict(processed_validation_count))))
-    print('TF/IDF ACCURACIES')
-    SVM = LinearSVC(C=c, max_iter=10000)
-    SVM.fit(processed_features_tfidf, y_train)
-    print ("Accuracy for C=%s: %s" 
-           % (c, accuracy_score(y_val, SVM.predict(processed_validation_tfidf))))
-    print()
+    # tfidf_vectorizer = TfidfVectorizer (max_features=50, min_df=7, max_df=0.6, stop_words=stopwords.words('english'))
+    # ngram_vectorizer = CountVectorizer(ngram_range=(1,2), min_df=7, max_df=0.6, max_features=50, stop_words=stopwords.words('english'))
 
-MNB = MultinomialNB()
-MNB.fit(processed_features_count, y_train)
-print ("Accuracy for Naive Bayes ngram: %s" 
-        % (accuracy_score(y_val, MNB.predict(processed_validation_count))))
-MNB.fit(processed_features_tfidf, y_train)
-print ("Accuracy for Naive Bayes tf/idf: %s" 
-        % (accuracy_score(y_val, MNB.predict(processed_validation_tfidf))))
+    # processed_features_tfidf = tfidf_vectorizer.fit_transform(X_train).toarray()
+    # processed_features_count = ngram_vectorizer.fit_transform(X_train).toarray()
 
-#print('feature names_1:', tfidf_vectorizer.get_feature_names())
-#print('feature names_2:', ngram_vectorizer.get_feature_names())
-#print(feature_names)
+    # processed_validation_tfidf = tfidf_vectorizer.fit_transform(X_val).toarray()
+    # processed_validation_count = ngram_vectorizer.fit_transform(X_val).toarray()
 
-#print(training_data)
-#print(validation_data)
+    # # Linear SVC
+    # for c in [0.001, 0.005, 0.01, 0.05, 0.1]:
+    #     print('NGRAM ACCURACIES')
+    #     SVM = LinearSVC(C=c, max_iter=10000)
+    #     SVM.fit(processed_features_count, y_train)
+    #     print ("Accuracy for C=%s: %s" 
+    #         % (c, accuracy_score(y_val, SVM.predict(processed_validation_count))))
+    #     print('TF/IDF ACCURACIES')
+    #     SVM = LinearSVC(C=c, max_iter=10000)
+    #     SVM.fit(processed_features_tfidf, y_train)
+    #     print ("Accuracy for C=%s: %s" 
+    #         % (c, accuracy_score(y_val, SVM.predict(processed_validation_tfidf))))
+    #     print()
+
+    # MNB = MultinomialNB()
+    # MNB.fit(processed_features_count, y_train)
+    # print ("Accuracy for Naive Bayes ngram: %s" 
+    #         % (accuracy_score(y_val, MNB.predict(processed_validation_count))))
+    # MNB.fit(processed_features_tfidf, y_train)
+    # print ("Accuracy for Naive Bayes tf/idf: %s" 
+    #     % (accuracy_score(y_val, MNB.predict(processed_validation_tfidf))))
+
+    #print('feature names_1:', tfidf_vectorizer.get_feature_names())
+    #print('feature names_2:', ngram_vectorizer.get_feature_names())
+    #print(feature_names)
+
+    #print(training_data)
+    #print(validation_data)
         
