@@ -146,7 +146,7 @@ def mutual_info_feature_selection(stops, X, y, threshold, vectorizer_type):
     else:
         vectorizer = CountVectorizer(stop_words=stops)
     print('init vectorizer')
-    
+
     features = vectorizer.fit_transform(X).toarray()
     print('create features')
     feature_scores = mutual_info_classif(features, y, random_state=0)
@@ -158,6 +158,7 @@ def mutual_info_feature_selection(stops, X, y, threshold, vectorizer_type):
         count += 1
     print('sort feature scores')
     return high_score_features
+
 
 def apply_models(key, y_val, processed_training_count, processed_validation_count, processed_training_tfidf, processed_validation_tfidf):
     print('Start applying models for', key, '...')
@@ -201,7 +202,49 @@ def apply_models(key, y_val, processed_training_count, processed_validation_coun
     print('Done, exec time:', time.time() - start)
     print()
 
+# writes mutual info vocab to file and returns the vocab.
 
+
+def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
+    selected_vocab = mutual_info_feature_selection(
+        stops, X, y, max_features, vectorizer_type)
+    with open('mi_vocab/' + vectorizer_type + str(max_features) + '.txt', 'w') as f:
+        f.write(str(selected_vocab))
+
+    return selected_vocab
+
+
+def extract_features_with_params(max_features, max_df, min_df, stops):
+    feature_tfidf_vectorizer = TfidfVectorizer(
+        max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
+    feature_count_vectorizer = CountVectorizer(
+        max_features=max_features, max_df=max_df, min_df=min_df, ngram_range=(1, 2), stop_words=stops)
+
+    processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
+        X_train).toarray()
+    processed_training_count = feature_count_vectorizer.fit_transform(
+        X_train).toarray()
+
+    vocab_tfidf = feature_tfidf_vectorizer.vocabulary_
+    vocab_ngram = feature_count_vectorizer.vocabulary_
+
+    validation_tfidf_vectorizer = TfidfVectorizer(
+        vocabulary=vocab_tfidf, stop_words=stops)
+    validation_count_vectorizer = CountVectorizer(
+        vocabulary=vocab_ngram, stop_words=stops)
+
+    processed_validation_tfidf = validation_tfidf_vectorizer.fit_transform(
+        X_val).toarray()
+    processed_validation_count = validation_count_vectorizer.fit_transform(
+        X_val).toarray()
+
+    return processed_training_tfidf, processed_validation_tfidf, processed_training_count, processed_validation_count
+
+def write_results(results, result_filenames):
+    for i in range(len(results)):
+        with open('results/' + result_filenames[i] + '.json', 'w') as f:
+            w = json.dumps(results[i], indent=2)
+            f.write(w)    
 if __name__ == "__main__":
     '''
     start = time.time()
@@ -248,35 +291,13 @@ if __name__ == "__main__":
     for max_features in max_features_list:
         for max_df in max_df_list:
             for min_df in min_df_list:
-                start = time.time()
-                # TODO(eridincu): Remind Mutual Information for feature selection
-                feature_tfidf_vectorizer = TfidfVectorizer(
-                    max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
-                feature_count_vectorizer = CountVectorizer(
-                    max_features=max_features, max_df=max_df, min_df=min_df, ngram_range=(1, 2), stop_words=stops)
-
-                processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
-                    X_train).toarray()
-                processed_training_count = feature_count_vectorizer.fit_transform(
-                    X_train).toarray()
-
-                vocab_tfidf = feature_tfidf_vectorizer.vocabulary_
-                vocab_ngram = feature_count_vectorizer.vocabulary_
-
-                validation_tfidf_vectorizer = TfidfVectorizer(
-                    vocabulary=vocab_tfidf, stop_words=stops)
-                validation_count_vectorizer = CountVectorizer(
-                    vocabulary=vocab_ngram, stop_words=stops)
-
-                processed_validation_tfidf = validation_tfidf_vectorizer.fit_transform(
-                    X_val).toarray()
-                processed_validation_count = validation_count_vectorizer.fit_transform(
-                    X_val).toarray()
-
+                processed_training_tfidf, processed_validation_tfidf, processed_training_count, processed_validation_count = extract_features_with_params(
+                    max_features, max_df, min_df, stops)
                 # TODO(eridincu): Remind this link: https://analyticsindiamag.com/7-types-classification-algorithms/
                 key = str(max_df) + ' ' + str(min_df) + ' ' + str(max_features)
                 apply_models(key, y_val, processed_training_count, processed_validation_count,
                              processed_training_tfidf, processed_validation_tfidf)
+
     accuracy_dict_GNB_TFIDF = sorted(
         accuracy_dict_GNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
     accuracy_dict_GNB_NGRAM = sorted(
@@ -292,31 +313,46 @@ if __name__ == "__main__":
 
     x = [accuracy_dict_GNB_TFIDF, accuracy_dict_GNB_NGRAM, accuracy_dict_MNB_TFIDF,
          accuracy_dict_MNB_NGRAM, accuracy_dict_LR_TFIDF, accuracy_dict_LR_NGRAM]
-    x_names = ['accuracy_dict_GNB_TFIDF', 'accuracy_dict_GNB_NGRAM', 'accuracy_dict_MNB_TFIDF',
-               'accuracy_dict_MNB_NGRAM', 'accuracy_dict_LR_TFIDF', 'accuracy_dict_LR_NGRAM']
-    
+    x_names = ['result_prior_accuracy_dict_GNB_TFIDF', 'result_prior_accuracy_dict_GNB_NGRAM', 'result_prior_accuracy_dict_MNB_TFIDF',
+               'result_prior_accuracy_dict_MNB_NGRAM', 'result_prior_accuracy_dict_LR_TFIDF', 'result_prior_accuracy_dict_LR_NGRAM']
+
     # dump without mutual info
-    for i in range(len(x)):
-        with open('results/result_prior_' + x_names[i] + '.json', 'w') as f:
-            w = json.dumps(x[i], indent=2)
-            f.write(w)
-    
+    write_results(x, x_names)
+
     # create models according to mutual information selection
     for max_features in max_features_list:
-        selected_vocab_count = mutual_info_feature_selection(
-            stops, X_train, y_train, max_features, 'count')
-        selected_vocab_tfidf = mutual_info_feature_selection(
-            stops, X_train, y_train, max_features, 'tfidf')
-        with open('mi_vocab/tfidf' + str(max_features) + '.txt', 'w') as f:
-            f.write(str(selected_vocab_tfidf)) 
-        with open('mi_vocab/count' + str(max_features) + '.txt', 'w') as f:
-            f.write(str(selected_vocab_count)) 
+        selected_vocab_count = {}
+        selected_vocab_tfidf = {}
+        # get mutual info vocab from file if the file is created for COUNT.
+        # else, create the vocab and save it for future use.
+        count_filename = 'mi_vocab/count' + str(max_features) + '.txt'
+        if os.path.exists(count_filename):
+            print(count_filename, 'is found, retrieving vocab...')
+            with open(count_filename, 'r') as f:
+                s = f.read()
+                selected_vocab_count = eval(s)
+        else:
+            print('Creating vocab file:', count_filename)
+            selected_vocab_count = write_and_get_mutual_info_vocab(
+                max_features, 'count', stops, X_train, y_train)
+        # get mutual info vocab from file if the file is created for TFIDF.
+        # else, create the vocab and save it for future use.
+        tfidf_filename = 'mi_vocab/tfidf' + str(max_features) + '.txt'
+        if os.path.exists(tfidf_filename):
+            print(tfidf_filename, 'is found, retrieving vocab...')
+            with open(tfidf_filename, 'r') as f:
+                s = f.read()
+                selected_vocab_tfidf = eval(s)
+        else:
+            print('Creating vocab file:', tfidf_filename)
+            selected_vocab_tfidf = write_and_get_mutual_info_vocab(
+                max_features, 'tfidf', stops, X_train, y_train)
 
         feature_tfidf_vectorizer = TfidfVectorizer(
             vocabulary=selected_vocab_tfidf, stop_words=stops)
         feature_count_vectorizer = CountVectorizer(
             vocabulary=selected_vocab_count, stop_words=stops)
-        
+
         processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
             X_train).toarray()
         processed_training_count = feature_count_vectorizer.fit_transform(
@@ -330,7 +366,7 @@ if __name__ == "__main__":
         key = 'mutual info ' + str(max_features)
         apply_models(key, y_val, processed_training_count, processed_validation_count,
                      processed_training_tfidf, processed_validation_tfidf)
-
+    # sort results
     accuracy_dict_GNB_TFIDF = sorted(
         accuracy_dict_GNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
     accuracy_dict_GNB_NGRAM = sorted(
@@ -346,13 +382,10 @@ if __name__ == "__main__":
 
     x = [accuracy_dict_GNB_TFIDF, accuracy_dict_GNB_NGRAM, accuracy_dict_MNB_TFIDF,
          accuracy_dict_MNB_NGRAM, accuracy_dict_LR_TFIDF, accuracy_dict_LR_NGRAM]
-    x_names = ['accuracy_dict_GNB_TFIDF', 'accuracy_dict_GNB_NGRAM', 'accuracy_dict_MNB_TFIDF',
-               'accuracy_dict_MNB_NGRAM', 'accuracy_dict_LR_TFIDF', 'accuracy_dict_LR_NGRAM']
+    x_names = ['result_accuracy_dict_GNB_TFIDF', 'result_accuracy_dict_GNB_NGRAM', 'result_accuracy_dict_MNB_TFIDF',
+               'result_accuracy_dict_MNB_NGRAM', 'result_accuracy_dict_LR_TFIDF', 'result_accuracy_dict_LR_NGRAM']
 
-    for i in range(len(x)):
-        with open('results/result_' + x_names[i] + '.json', 'w') as f:
-            w = json.dumps(x[i], indent=2)
-            f.write(w)
+    write_results(x, x_names)
 
     # print('ngram', ngram_vectorizer.get_feature_names())
     # print('tfidf', feature_tfidf_vectorizer.get_feature_names())
