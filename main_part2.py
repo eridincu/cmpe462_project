@@ -284,7 +284,7 @@ if __name__ == "__main__":
                 stops.append(line[1:].strip())
 
     max_features_list = range(50, 800, 50)
-    min_df_list = range(1, 10)
+    min_df_list = range(1, 11)
     max_df_list = [x * 0.1 for x in range(1, 11)]
 
     # create models according to feature extraction by tf/idf
@@ -297,27 +297,6 @@ if __name__ == "__main__":
                 key = str(max_df) + ' ' + str(min_df) + ' ' + str(max_features)
                 apply_models(key, y_val, processed_training_count, processed_validation_count,
                              processed_training_tfidf, processed_validation_tfidf)
-
-    accuracy_dict_GNB_TFIDF = sorted(
-        accuracy_dict_GNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    accuracy_dict_GNB_NGRAM = sorted(
-        accuracy_dict_GNB_NGRAM.items(), key=lambda x: x[1], reverse=True)
-    accuracy_dict_MNB_TFIDF = sorted(
-        accuracy_dict_MNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    accuracy_dict_MNB_NGRAM = sorted(
-        accuracy_dict_MNB_NGRAM.items(), key=lambda x: x[1], reverse=True)
-    accuracy_dict_LR_TFIDF = sorted(
-        accuracy_dict_LR_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    accuracy_dict_LR_NGRAM = sorted(
-        accuracy_dict_LR_NGRAM.items(), key=lambda x: x[1], reverse=True)
-
-    x = [accuracy_dict_GNB_TFIDF, accuracy_dict_GNB_NGRAM, accuracy_dict_MNB_TFIDF,
-         accuracy_dict_MNB_NGRAM, accuracy_dict_LR_TFIDF, accuracy_dict_LR_NGRAM]
-    x_names = ['result_prior_accuracy_dict_GNB_TFIDF', 'result_prior_accuracy_dict_GNB_NGRAM', 'result_prior_accuracy_dict_MNB_TFIDF',
-               'result_prior_accuracy_dict_MNB_NGRAM', 'result_prior_accuracy_dict_LR_TFIDF', 'result_prior_accuracy_dict_LR_NGRAM']
-
-    # dump without mutual info
-    write_results(x, x_names)
 
     # create models according to mutual information selection
     for max_features in max_features_list:
