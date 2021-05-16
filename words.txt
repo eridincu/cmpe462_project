@@ -1,6 +1,6 @@
 10
 39
-able
+=able
 absolutely
 act
 acting
@@ -13,7 +13,7 @@ age
 alien
 =almost
 alone
-along
+=along
 =already
 =also
 =although
@@ -35,7 +35,10 @@ audience
 average
 away
 awful
-back
+=back
+=br
+=br br
+=us
 bad
 base
 basically
@@ -103,7 +106,7 @@ definitely
 deliver
 depth
 deserve
-despite
+=despite
 development
 dialogue
 die
