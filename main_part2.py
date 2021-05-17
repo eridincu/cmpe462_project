@@ -9,7 +9,7 @@ import json
 import io
 import nltk
 import time
-import sys
+import pickle
 
 import numpy as np
 from nltk import tokenize
@@ -376,9 +376,9 @@ if __name__ == "__main__":
             if line.startswith('='):
                 stops.append(line[1:].strip())
 
-    max_features_list = range(50, 60, 10)
-    min_df_list = range(1, 2)
-    max_df_list = [x * 0.1 for x in range(5, 6)]
+    max_features_list = range(1, 750, 1)
+    min_df_list = range(2, 3)
+    max_df_list = [x * 0.1 for x in range(1, 11)]
 
     # create models according to feature extraction by tf/idf
     test_feature_params_with_model(X_train, X_val, y_train, y_val, stops, max_features_list, min_df_list, max_df_list)

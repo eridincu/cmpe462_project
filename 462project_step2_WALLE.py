@@ -37,7 +37,7 @@ def nltk_tag_to_wordnet_tag(nltk_tag):
 
 def extract_data(directory_path):
     data = []
-    print('Extracting data...')
+    # print('Extracting data...')
     sorted_filenames = os.listdir(directory_path)
     sorted_filenames.sort(key=lambda x: int(x[:-6]))
     for filename in sorted_filenames:
@@ -51,11 +51,11 @@ def extract_data(directory_path):
                 rating = filename[-5]
 
                 data.append(Data('header', content, rating))
-    print('Done!\n')
+    # print('Done!\n')
     return data
 
 def format_data(data):
-    print('Formatting data...')
+    # print('Formatting data...')
     # lemmatize the training data
     for i in range(0, len(data)):
         # Remove all the special characters
@@ -80,8 +80,9 @@ def format_data(data):
         formatted_content = formatted_content.lower()
 
         data[i].content = lemmatize_sentence(formatted_content)
-    print('Done!\n')
+    # print('Done!\n')
 
+# lemmatice the sentence received for applying vectorization
 def lemmatize_sentence(sentence):
     # init lemmatizer
     WNL = WordNetLemmatizer()
@@ -100,6 +101,7 @@ def lemmatize_sentence(sentence):
             lemmatized_sentence.append(WNL.lemmatize(word, tag))
     return " ".join(lemmatized_sentence)
 
+# apply vectorization
 def vectorize_X(X, vocabulary, stops):
     tfidf_vectorizer = TfidfVectorizer(
         vocabulary=vocabulary, stop_words=stops)
@@ -107,6 +109,7 @@ def vectorize_X(X, vocabulary, stops):
     return tfidf_vectorizer.fit_transform(
         X).toarray()
 
+# calculate the accuracy statistic
 def get_accuracy(result, y):
     comparison = (result == y)
     comparison = comparison * 1
@@ -114,6 +117,7 @@ def get_accuracy(result, y):
     
     return accuracy
 
+# calculate the precision statistic
 def get_precision(result, y):
     correct_predictions = {'P': 0, 'N': 0, 'Z': 0}
 
@@ -128,6 +132,7 @@ def get_precision(result, y):
         
     return correct_predictions
 
+# calculate the recall statistic
 def get_recall(result, y):
     correct_predictions = {'P': 0, 'N': 0, 'Z': 0}
 
@@ -142,6 +147,7 @@ def get_recall(result, y):
         
     return correct_predictions
 
+# get all performance statistics accuracy, precision, recall, macro averages for precision and recall
 def get_performance_metrics(result, y):
     result = np.array(result)
     y = np.array(y)
@@ -153,12 +159,22 @@ def get_performance_metrics(result, y):
     macro_avg_recall = sum(recall.values()) / len(recall)
     return accuracy, precision, recall, macro_avg_precision, macro_avg_recall
 
+# print the predictions for the input data to terminal
 def print_results(result):
     s = ""
     for res in result:
         s += str(res)
     print(s)
-    return s
+
+# write statistics to file
+def report_statistics(accuracy, precision, recall, macro_avg_precision, macro_avg_recall):
+    with open('statistical_results.txt', 'w') as f:
+        f.write('Accuracy: ' + str(accuracy) + '\n')
+        f.write('Precision: ' + str(precision) + '\n')
+        f.write('Recall: ' + str(recall) + '\n')
+        f.write('Macro Average Precision: ' + str(macro_avg_precision) + '\n')
+        f.write('Macro Average Recall: ' + str(macro_avg_recall) + '\n')
+
 def main():
     X_test = []
     y_test = []
@@ -200,12 +216,10 @@ def main():
     
     result = MODEL.predict(vectorized_X_test)
 
-    accuracy, precision, recall, macro_avg_precision, macro_avg_recall = get_performance_metrics(result, y_test)
-    print('Accuracy:', accuracy)
-    print('Precision:', precision)
-    print('Recall:', recall)
-    print('Macro Average Precision:', macro_avg_precision)
-    print('Macro Average Recall:', macro_avg_recall)
-    # report_statistics(accuracy, precision, recall, macro_avg_precision, macro_avg_recall)
+    print_results(result)
+    # get statistical results
+    accuracy, precision, recall, macro_avg_precision, macro_avg_recall = get_performance_metrics(result, y_test)  
+    report_statistics(accuracy, precision, recall, macro_avg_precision, macro_avg_recall)
+
 if __name__ == "__main__":
     main()
