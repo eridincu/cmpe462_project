@@ -1,0 +1,1 @@
+{'rushing': 0, 'somewhat': 1, 'richly': 2, 'recognize': 3, 'northern': 4, 'ironic': 5, 'replication': 6, 'unforgiving': 7, 'terror': 8, 'ne': 9}

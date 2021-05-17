@@ -9,6 +9,8 @@ import json
 import io
 import nltk
 import time
+import sys
+
 import numpy as np
 from nltk import tokenize
 from numpy.lib.function_base import vectorize
@@ -40,6 +42,13 @@ accuracy_dict_LR_COUNT = {}
 accuracy_dict_LR_TFIDF = {}
 accuracy_dict_RFR_COUNT = {}
 accuracy_dict_RFR_TFIDF = {}
+
+accuracy = 0
+precision = 0
+recall = 0
+
+macro_avg = 0
+
 
 X_train = []
 y_train = []
@@ -86,7 +95,9 @@ def lemmatize_sentence(sentence):
 def extract_data(directory_path):
     data = []
     print('Extracting data...')
-    for filename in os.listdir(directory_path):
+    filenames = os.listdir(directory_path)
+    filenames.sort(key=lambda x: int(x[:-6]))
+    for filename in filenames:
         with io.open(directory_path + '\\' + filename, "r", encoding="utf8") as f:
             review = f.read()
 
@@ -137,7 +148,6 @@ def write_to_txt(name, _list):
     count = 0
     for element in _list:
         txt_file.write(element + "\n")
-        print(count)
         count += 1
     txt_file.close()
     print('Done!\n')
@@ -150,33 +160,12 @@ def read_from_txt(name):
         _list.append(element.strip())
     return _list
 
-def mutual_info_feature_selection(stops, X, y, threshold, vectorizer_type):
-    vectorizer = ""
-
-    if vectorizer_type == 'tfidf':
-        vectorizer = TfidfVectorizer(stop_words=stops)
-    else:
-        vectorizer = CountVectorizer(stop_words=stops)
-    print('init vectorizer')
-
-    features = vectorizer.fit_transform(X).toarray()
-    print('create features')
-    feature_scores = mutual_info_classif(features, y, random_state=0)
-    print('received feature scores')
-    high_score_features = {}
-    count = 0
-    for score, f_name in sorted(zip(feature_scores, vectorizer.get_feature_names()), reverse=True)[:threshold]:
-        high_score_features[f_name] = count
-        count += 1
-    print('sort feature scores')
-    return high_score_features
-
 def apply_models(key, processed_training_count, processed_validation_count, processed_training_tfidf, processed_validation_tfidf):
     print('Start applying models for', key, '...')
     start = time.time()
 
-    # apply_rfr(key, processed_training_count, processed_validation_count, 100)
-    # apply_rfr(key, processed_training_tfidf, processed_validation_tfidf, 100)
+    apply_rfr(key, processed_training_count, processed_validation_count, 100)
+    apply_rfr(key, processed_training_tfidf, processed_validation_tfidf, 100)
     
     apply_mnb(key, processed_training_count, processed_validation_count)
     apply_mnb(key, processed_training_tfidf, processed_validation_tfidf)
@@ -184,34 +173,38 @@ def apply_models(key, processed_training_count, processed_validation_count, proc
     apply_gnb(key, processed_training_count, processed_validation_count)
     apply_gnb(key, processed_training_tfidf, processed_validation_tfidf)
 
-    # apply_lr_cross_val(key, processed_training_count, processed_validation_count)
-    # apply_lr_cross_val(key, processed_training_tfidf, processed_validation_tfidf)
+    apply_lr_cross_val(key, processed_training_count, processed_validation_count)
+    apply_lr_cross_val(key, processed_training_tfidf, processed_validation_tfidf)
+
+    sorted_acc_lr = sorted(
+        accuracy_dict_LR_COUNT.items(), key=lambda x: x[1], reverse=True)
+    write_results([sorted_acc_lr], ['result_accuracy_dict_LR'])
 
     print('Done, exec time:', time.time() - start)
-    # # sort results
-    # accuracy_dict_GNB_TFIDF = sorted(
-    #     accuracy_dict_GNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_GNB_COUNT = sorted(
-    #     accuracy_dict_GNB_COUNT.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_MNB_TFIDF = sorted(
-    #     accuracy_dict_MNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_MNB_COUNT = sorted(
-    #     accuracy_dict_MNB_COUNT.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_LR_TFIDF = sorted(
-    #     accuracy_dict_LR_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_LR_COUNT = sorted(
-    #     accuracy_dict_LR_COUNT.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_RFR_TFIDF = sorted(
-    #     accuracy_dict_RFR_TFIDF.items(), key=lambda x: x[1], reverse=True)
-    # accuracy_dict_RFR_COUNT = sorted(
-    #     accuracy_dict_RFR_COUNT.items(), key=lambda x: x[1], reverse=True)
+    # sort results and write them to files
+    accuracy_dict_GNB_TFIDF = sorted(
+        accuracy_dict_GNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_GNB_COUNT = sorted(
+        accuracy_dict_GNB_COUNT.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_MNB_TFIDF = sorted(
+        accuracy_dict_MNB_TFIDF.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_MNB_COUNT = sorted(
+        accuracy_dict_MNB_COUNT.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_LR_TFIDF = sorted(
+        accuracy_dict_LR_TFIDF.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_LR_COUNT = sorted(
+        accuracy_dict_LR_COUNT.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_RFR_TFIDF = sorted(
+        accuracy_dict_RFR_TFIDF.items(), key=lambda x: x[1], reverse=True)
+    accuracy_dict_RFR_COUNT = sorted(
+        accuracy_dict_RFR_COUNT.items(), key=lambda x: x[1], reverse=True)
 
-    # accuracy_dict_list = [accuracy_dict_GNB_TFIDF, accuracy_dict_GNB_COUNT, accuracy_dict_MNB_TFIDF,
-    #      accuracy_dict_MNB_COUNT, accuracy_dict_LR_TFIDF, accuracy_dict_LR_COUNT, accuracy_dict_RFR_TFIDF, accuracy_dict_RFR_COUNT]
-    # accuracy_dict_list_names = ['result_accuracy_dict_GNB_TFIDF', 'result_accuracy_dict_GNB_COUNT', 'result_accuracy_dict_MNB_TFIDF',
-    #            'result_accuracy_dict_MNB_COUNT', 'result_accuracy_dict_LR_TFIDF', 'result_accuracy_dict_LR_COUNT', 'result_accuracy_dict_RFR_TFIDF', 'result_accuracy_dict_RFR_COUNT']
+    accuracy_dict_list = [accuracy_dict_GNB_TFIDF, accuracy_dict_GNB_COUNT, accuracy_dict_MNB_TFIDF,
+         accuracy_dict_MNB_COUNT, accuracy_dict_LR_TFIDF, accuracy_dict_LR_COUNT, accuracy_dict_RFR_TFIDF, accuracy_dict_RFR_COUNT]
+    accuracy_dict_list_names = ['result_accuracy_dict_GNB_TFIDF', 'result_accuracy_dict_GNB_COUNT', 'result_accuracy_dict_MNB_TFIDF',
+               'result_accuracy_dict_MNB_COUNT', 'result_accuracy_dict_LR_TFIDF', 'result_accuracy_dict_LR_COUNT', 'result_accuracy_dict_RFR_TFIDF', 'result_accuracy_dict_RFR_COUNT']
 
-    # write_results(accuracy_dict_list, accuracy_dict_list_names)
+    write_results(accuracy_dict_list, accuracy_dict_list_names)
     print()
 
 def apply_rfr(key, processed_training_count, processed_validation_count, n_estimator):
@@ -234,21 +227,23 @@ def apply_rfr(key, processed_training_count, processed_validation_count, n_estim
     score = RFR.score(processed_validation_count, y_val_rfr)
     accuracy_dict_RFR_COUNT[str(n_estimator) + '_' + key] = score
 
+# apply logistic regression with 5-fold cross validation and save the accuracy in logistic regression result dictionary
 def apply_lr_cross_val(key, training_data, validation_data):
     print('Applying LRC to', key, '...')
     LR = LogisticRegressionCV(cv=5, max_iter=100000, n_jobs=-1)
     LR.fit(training_data, y_train)
+
     score = LR.score(validation_data, y_val)
     accuracy_dict_LR_COUNT[key] = score
-
+# apply logistic regression with gaussian naive bayes and save the accuracy in logistic regression result dictionary
 def apply_gnb(key, training_data, validation_data):
     print('Applying GNB to', key, '...')
     GNB = GaussianNB()
     GNB.fit(training_data, y_train)
-    # print ("Accuracy for G. Naive Bayes ngram: %s",    #     % (accuracy_score(y_val, GNB.predict(processed_validation_count))))
+    
     accuracy_dict_GNB_COUNT[key] = accuracy_score(
         y_val, GNB.predict(validation_data))
-
+# apply logistic regression with gaussian naive bayes and save the accuracy in logistic regression result dictionary
 def apply_mnb(key, training_data, validation_data):
     print('Applying MNB to', key, '...')
     MNB = MultinomialNB()
@@ -266,6 +261,27 @@ def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
 
     return selected_vocab
 
+def mutual_info_feature_selection(stops, X, y, threshold, vectorizer_type):
+    vectorizer = ""
+
+    if vectorizer_type == 'tfidf':
+        vectorizer = TfidfVectorizer(stop_words=stops)
+    else:
+        vectorizer = CountVectorizer(stop_words=stops)
+    print('init vectorizer')
+
+    features = vectorizer.fit_transform(X).toarray()
+    print('create features')
+    feature_scores = mutual_info_classif(features, y, random_state=0)
+    print('received feature scores')
+    high_score_features = {}
+    count = 0
+    for score, f_name in sorted(zip(feature_scores, vectorizer.get_feature_names()), reverse=True)[:threshold]:
+        high_score_features[f_name] = count
+        count += 1
+    print('sort feature scores')
+    return high_score_features
+    
 def extract_features_with_params(max_features, max_df, min_df, stops):
     feature_tfidf_vectorizer = TfidfVectorizer(
         max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
@@ -310,9 +326,10 @@ def test_feature_params_with_model(stops, max_features_list, min_df_list, max_df
                              processed_training_tfidf, processed_validation_tfidf)
 
 if __name__ == "__main__":
-
+    args = sys.argv
+    
+    #folder_name = args[2]
     start = time.time()
-    '''
     # extract the training data
     training_data = extract_data('TRAIN')
     # extract the validation data
@@ -334,7 +351,7 @@ if __name__ == "__main__":
     write_to_txt('y_train.txt', y_train)
     write_to_txt('x_val.txt', X_val)
     write_to_txt('y_val.txt', y_val)
-    '''
+    
     X_train = read_from_txt('x_train.txt')
     y_train = read_from_txt('y_train.txt')
     X_val = read_from_txt('x_val.txt')

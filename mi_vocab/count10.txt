@@ -1,0 +1,1 @@
+{'rushing': 0, 'recognize': 1, 'richly': 2, 'like': 3, 'ironic': 4, 'northern': 5, 'replication': 6, 'unforgiving': 7, 'friendship': 8, 'ne': 9}
