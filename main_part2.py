@@ -350,16 +350,8 @@ def initialize_data(directory_name, file_name_X, file_name_y, X, y):
     return X, y
 
 if __name__ == "__main__":
-    global accuracy_dict_GNB_COUNT, accuracy_dict_GNB_TFIDF, accuracy_dict_MNB_COUNT, accuracy_dict_MNB_TFIDF, accuracy_dict_LR_COUNT, accuracy_dict_LR_TFIDF, accuracy_dict_RFR_COUNT, accuracy_dict_RFR_TFIDF
-
     training_data = []
     validation_data = []
-
-    accuracy = 0
-    precision = 0
-    recall = 0
-
-    macro_avg = 0
 
     X_train = []
     y_train = []
@@ -412,28 +404,3 @@ if __name__ == "__main__":
     accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_MNB', 'result_accuracy_dict_LR', 'result_accuracy_dict_RFR']
 
     write_results(accuracy_dict_list, accuracy_dict_list_names)
-
-    # print('ngram', ngram_vectorizer.get_feature_names())
-    # print('tfidf', feature_tfidf_vectorizer.get_feature_names())
-    # print('TF/IDF Uniquesfeature_:', [x for x in feature_tfidf_vectorizer.get_feature_names() if x not in ngram_vectorizer.get_feature_names()])
-    # print('NGRAM Uniques:', [x for x in feature_ngram_vectorizer.get_feature_names() if x not in feature_tfidf_vectorizer.get_feature_names()])
-    # # Linear feature_SVC
-    # for c in [0.001, 0.005, 0.01, 0.05, 0.1]:
-    #     print('NGRAM ACCURACIES')
-
-    #     SVM = LinearSVC(C=c, max_iter=10000)
-    #     SVM.fit(processed_features_count, y_train)
-    #     print ("Accuracy for C=%s: %s"
-    #         % (c, accuracy_score(y_val, SVM.predict(processed_validation_count))))
-    #     print('TF/IDF ACCURACIES')
-    #     SVM = LinearSVC(C=c, max_iter=10000)
-    #     SVM.fit(processed_features_tfidf, y_train)
-    #     print ("Accuracy for C=%s: %s"
-    #         % (c, accuracy_score(y_val, SVM.predict(processed_validation_tfidf))))
-    #     print()
-
-    # print('feature names_1:', feature_tfidf_vectorizer.get_feature_names())
-    # print('feature names_2:', feature_ngram_vectorizer.get_feature_names())
-
-    # print(training_data)
-    # print(validation_data)
