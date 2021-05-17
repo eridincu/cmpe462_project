@@ -9,7 +9,7 @@ import json
 import io
 import nltk
 import time
-import pickle
+import sys
 
 import numpy as np
 from nltk import tokenize
@@ -25,12 +25,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.feature_selection import mutual_info_classif
 
-from sklearn.svm import LinearSVC
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.utils import validation
 
 accuracy_dict_MNB = {}
 accuracy_dict_GNB = {}
@@ -376,7 +374,7 @@ if __name__ == "__main__":
             if line.startswith('='):
                 stops.append(line[1:].strip())
 
-    max_features_list = range(1, 750, 1)
+    max_features_list = range(50, 2550, 50)
     min_df_list = range(2, 3)
     max_df_list = [x * 0.1 for x in range(1, 11)]
 

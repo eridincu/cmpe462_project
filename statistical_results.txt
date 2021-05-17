@@ -1,0 +1,5 @@
+Accuracy: 0.676
+Precision: {'P': 0.76953125, 'N': 0.667953667953668, 'Z': 0.5829787234042553}
+Recall: {'P': 0.788, 'N': 0.692, 'Z': 0.548}
+Macro Average Precision: 0.6734878804526411
+Macro Average Recall: 0.676
