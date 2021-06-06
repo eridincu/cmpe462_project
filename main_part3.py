@@ -67,7 +67,7 @@ def lemmatize_sentence(sentence):
         else:
             # else use the tag to lemmatize the token
             lemmatized_sentence.append(WNL.lemmatize(word, tag))
-    return " ".join(lemmatized_sentence)
+    return lemmatized_sentence
 
 def extract_data(directory_path):
     data = []
@@ -124,7 +124,7 @@ def write_to_txt(name, _list):
     txt_file = open(name, "w", encoding="utf-8")
     count = 0
     for element in _list:
-        txt_file.write(element + "\n")
+        txt_file.write(" ".join(element) + "\n")
         count += 1
     txt_file.close()
     print('Done!\n')
@@ -134,7 +134,7 @@ def read_from_txt(name):
     content_list = txt_file.readlines()
     _list = list()
     for element in content_list:
-        _list.append(element.strip())
+        _list.append(element.strip().split())
     return _list
 
 def apply_models(y_train, y_val, key, processed_training_count, processed_validation_count, processed_training_tfidf, processed_validation_tfidf):
@@ -253,13 +253,13 @@ def write_results(results, result_filenames):
 
 def test_feature_params_with_model(X_train, X_val, y_train, y_val, stops):
  
-
+    pass
 
     # apply_models(y_train, y_val, key, processed_training_count, processed_validation_count,
     #                 processed_training_tfidf, processed_validation_tfidf)
 
 
-def initialize_data(directory_name, file_name_X, file_name_y, X, y):
+def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     try:
         X = read_from_txt(file_name_X)
         y = read_from_txt(file_name_y)
@@ -270,7 +270,8 @@ def initialize_data(directory_name, file_name_X, file_name_y, X, y):
         format_data(training_data)
         
         for data in training_data:
-            X.append(data.content)
+            content_wo_stops = [w for w in data.content if not w in stops]
+            X.append(content_wo_stops)
             y.append(data.rating)
 
         write_to_txt(file_name_X, X)
@@ -290,12 +291,6 @@ if __name__ == "__main__":
     WNL = WordNetLemmatizer()
     
     print('Initialization begin!')
-    # training data
-    X_train, y_train =  initialize_data('TRAIN', 'x_train.txt', 'y_train.txt', X_train, y_train)
-     # validation data
-    X_val, y_val = initialize_data('VAL', 'x_val.txt', 'y_val.txt', X_val, y_val)
-    print('Initialization done!')
-    
     # initialize stop words
     stops = stopwords.words('english')
     # To add more stop words, add = symbol to the beginning of the words you want to add in a file called words.txt
@@ -304,6 +299,14 @@ if __name__ == "__main__":
         for line in lines:
             if line.startswith('='):
                 stops.append(line[1:].strip())
+    # training data
+    X_train, y_train =  initialize_data('TRAIN', 'x_train.txt', 'y_train.txt', X_train, y_train, stops)
+     # validation data
+    X_val, y_val = initialize_data('VAL', 'x_val.txt', 'y_val.txt', X_val, y_val, stops)
+    print('Initialization done!')
+    print(X_val[0])
+    exit()
+
 
     # create models according to feature extraction by tf/idf
     test_feature_params_with_model(X_train, X_val, y_train, y_val, stops)
