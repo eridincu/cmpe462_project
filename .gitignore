@@ -1,1 +1,5 @@
 .vscode/
+
+step2_model_WALLE.pkl
+step2_model_WALLE333.pkl
+.gitignore
