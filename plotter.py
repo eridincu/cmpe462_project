@@ -22,14 +22,17 @@ for result in data:
 
     for i in range(len(tokens)):
         tokens[i] = float(tokens[i])
+        pass
     
     max_dfs.append(tokens[0])
     min_dfs.append(tokens[1])
-    features.append(tokens[2])
+    features.append(float(tokens[2]))
 
     results.append(result[1])
+
 count = 1
-for param_list in [min_dfs, max_dfs, features]:
+params = [min_dfs, max_dfs, features]
+for param_list in params:
     totals = defaultdict(float)
     averages = defaultdict(float) 
     for i in range(len(results)):
@@ -41,9 +44,22 @@ for param_list in [min_dfs, max_dfs, features]:
         else:
             averages[key] = totals[key] / (len(results) / 10)
 
-
     plt.figure()
+    if len(params) == 1:
+        plt.xlabel('features')
+    elif count == 1:
+        plt.xlabel('min_dfs')
+    elif count == 2:
+        plt.xlabel('max_dfs')
+    else: 
+        plt.xlabel('features')
+
+    plt.ylabel('accuracy_average_score')
+    title = 'Multinomial Naive Bayes'
+    if len(params) == 1:
+        title += ' Mutual Info'
+    plt.title(title)
     plt.scatter(list(reversed(averages.keys())), list(reversed(averages.values())))
-    plt.savefig('plots/' + str(count) + '.png')
+    plt.savefig('plots/' + str(count) + '1.png')
     plt.close()
     count += 1
