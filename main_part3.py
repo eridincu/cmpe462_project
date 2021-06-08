@@ -139,21 +139,31 @@ def read_from_txt(name):
         _list.append(element.strip().split())
     return _list
 
-def apply_models(y_train, y_val, key, processed_training_count, processed_validation_count, processed_training_tfidf, processed_validation_tfidf):
+def apply_model_tfidf(y_train, y_val, key,processed_training_tfidf, processed_validation_tfidf):
     print('Start applying models for', key, '...')
     start = time.time()
 
-    apply_rfr(y_train, y_val, 'count ' + key, processed_training_count, processed_validation_count, 100)
     apply_rfr(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf, 100)
     
-    apply_mnb(y_train, y_val, 'count ' + key, processed_training_count, processed_validation_count)
     apply_mnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
 
-    apply_gnb(y_train, y_val, 'count ' + key, processed_training_count, processed_validation_count)
     apply_gnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
 
-    apply_log_reg(y_train, y_val, 'count ' + key, processed_training_count, processed_validation_count)
     apply_log_reg(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
+
+    print('Done, exec time:', time.time() - start)
+
+def apply_model_Glove(y_train, y_val, key, X_train_vector, X_val_vector):
+    print('Start applying models for', key, '...')
+    start = time.time()
+
+    apply_rfr(y_train, y_val,  key, X_train_vector, X_val_vector, 1000)
+    
+    apply_gnb(y_train, y_val, key, X_train_vector, X_val_vector)
+
+    apply_log_reg(y_train, y_val, key, X_train_vector, X_val_vector)
+    
+    apply_lin_reg(y_train, y_val, key, X_train_vector, X_val_vector)
 
     print('Done, exec time:', time.time() - start)
 
@@ -235,54 +245,28 @@ def apply_mnb(y_train, y_val, key, training_data, validation_data):
     accuracy_dict_MNB[key] = accuracy_score(
         y_val, MNB.predict(validation_data))
 
-# writes mutual info vocab to file and returns the vocab.
-def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
-    selected_vocab = mutual_info_feature_selection(
-        stops, X, y, max_features, vectorizer_type)
-    with open('mi_vocab/' + vectorizer_type + str(max_features) + '.txt', 'w') as f:
-        f.write(str(selected_vocab))
-
-    return selected_vocab
-
 def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, stops):
     feature_tfidf_vectorizer = TfidfVectorizer(
         max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
-    feature_count_vectorizer = CountVectorizer(
-        max_features=max_features, max_df=max_df, min_df=min_df, ngram_range=(1, 2), stop_words=stops)
 
     processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
         X_train).toarray()
-    processed_training_count = feature_count_vectorizer.fit_transform(
-        X_train).toarray()
 
     vocab_tfidf = feature_tfidf_vectorizer.vocabulary_
-    vocab_ngram = feature_count_vectorizer.vocabulary_
     
     validation_tfidf_vectorizer = TfidfVectorizer(
         vocabulary=vocab_tfidf, stop_words=stops)
-    validation_count_vectorizer = CountVectorizer(
-        vocabulary=vocab_ngram, stop_words=stops)
 
     processed_validation_tfidf = validation_tfidf_vectorizer.fit_transform(
         X_val).toarray()
-    processed_validation_count = validation_count_vectorizer.fit_transform(
-        X_val).toarray()
 
-    return processed_training_tfidf, processed_validation_tfidf, processed_training_count, processed_validation_count
+    return processed_training_tfidf, processed_validation_tfidf
 
-def write_results(results, result_filenames):
+def write_results(results, result_filenames, result_folder):
     for i in range(len(results)):
-        with open('resultsGlove/' + result_filenames[i] + '.json', 'w') as f:
+        with open(result_folder + '/'+ result_filenames[i] + '.json', 'a') as f:
             w = json.dumps(results[i], indent=2)
             f.write(w)    
-
-def test_feature_params_with_model(X_train, X_val, y_train, y_val, stops):
- 
-    pass
-
-    # apply_models(y_train, y_val, key, processed_training_count, processed_validation_count,
-    #                 processed_training_tfidf, processed_validation_tfidf)
-
 
 def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     try:
@@ -327,6 +311,9 @@ def gloveVectorizer(glove, X, dimension):
     print("gloveVectorizer finished in time ",time.time()-start)
     return X_vector
 
+def normalizeVector(X):
+    return (X - X.min()) / (X.max() - X.min())
+
 if __name__ == "__main__":
     training_data = []
     validation_data = []
@@ -352,11 +339,16 @@ if __name__ == "__main__":
      # validation data
     X_val, y_val = initialize_data('VAL', 'x_val.txt', 'y_val.txt', X_val, y_val, stops)
     print('Initialization done!')
-    total_vocabulary = set(word for document in X_train for word in document)
-    gloveDict, dim = getGloveVectors(total_vocabulary)
-    X_train_vector = gloveVectorizer(gloveDict, X_train, dim)
-    X_val_vector = gloveVectorizer(gloveDict, X_val, dim)
-    apply_log_reg(y_train, y_val, "glove" , X_train_vector, X_val_vector)
+    train_vocabulary = set(word for document in X_train for word in document)
+    val_vocabulary = set(word for document in X_val for word in document)
+    gloveDict_train, dim = getGloveVectors(train_vocabulary)
+    gloveDict_val, dim = getGloveVectors(val_vocabulary)
+    X_train_vector = gloveVectorizer(gloveDict_train, X_train, dim)
+    X_val_vector = gloveVectorizer(gloveDict_val, X_val, dim)
+    # X_train_norm = normalizeVector(X_train_vector)
+    # X_val_norm = normalizeVector(X_val_vector)
+    apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
+    
 
     
 
@@ -377,7 +369,7 @@ if __name__ == "__main__":
     #     accuracy_dict_RFR.items(), key=lambda x: x[1], reverse=True)
     
     # prepare the data, and print the results to a file
-    accuracy_dict_list = [accuracy_dict_GNB, accuracy_dict_MNB, accuracy_dict_LOG_REG, accuracy_dict_RFR, accuracy_dict_LIN_REG]
-    accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_MNB', 'result_accuracy_dict_LOG_REG', 'result_accuracy_dict_RFR','accuracy_dict_LIN_REG']
+    accuracy_dict_list = [accuracy_dict_GNB, accuracy_dict_LOG_REG, accuracy_dict_RFR, accuracy_dict_LIN_REG]
+    accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_LOG_REG', 'result_accuracy_dict_RFR','result_accuracy_dict_LIN_REG']
 
-    write_results(accuracy_dict_list, accuracy_dict_list_names)
+    write_results(accuracy_dict_list, accuracy_dict_list_names, "resultsGlove2")
