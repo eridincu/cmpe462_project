@@ -25,11 +25,16 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.feature_selection import mutual_info_classif
 
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+from sklearn import svm
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.utils import validation
 
 accuracy_dict_MNB = {}
 accuracy_dict_GNB = {}
@@ -245,6 +250,54 @@ def apply_mnb(y_train, y_val, key, training_data, validation_data):
     accuracy_dict_MNB[key] = accuracy_score(
         y_val, MNB.predict(validation_data))
 
+
+def apply_svm(y_train, y_val, key, training_data, validation_data):
+    y_train = np.array(y_train)
+    y_val = np.array(y_val)
+
+    rbf_dict = {}
+    # for c in [0.0005, 0.5, 5, 50, 500, 5000]:
+    #     print('Current C value:', c)
+    #     scaler = StandardScaler()
+    #     training_data = scaler.fit_transform(training_data)
+    #     validation_data = scaler.fit_transform(validation_data)
+    #     SVM = svm.SVC(kernel='rbf', C=c)
+    #     SVM.fit(training_data, y_train)
+    #     rbf_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+    #     print('Done!')
+    # print(key, c, 'RBF accuracy:', rbf_dict)
+    
+    linear_dict = {}
+    # for c in range(1, 100, 1):
+    #     print('Current C value:', c)
+    #     SVM = make_pipeline(StandardScaler(), svm.LinearSVC(dual=False, C=c))
+    #     SVM.fit(training_data, y_train)
+    #     print(key, 'LINEAR accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
+    #     linear_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+    #     print('Done!')
+
+    polynomial_dict = {}
+    # for c in range(1, 100, 1):
+    #     print('Current C value:', c)
+    #     SVM = make_pipeline(StandardScaler(), svm.SVC(kernel='poly', C=c))
+    #     SVM.fit(training_data, y_train)
+    #     print(key, 'POLY accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
+    #     polynomial_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+    #     print('Done!')
+
+        # print(key, c, 'POLY accuracy:', linear_dict)
+
+    write_results([rbf_dict, linear_dict, polynomial_dict], ['rbf_gloves', 'linear_gloves', 'polynomial_gloves'])
+    
+# writes mutual info vocab to file and returns the vocab.
+def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
+    selected_vocab = mutual_info_feature_selection(
+        stops, X, y, max_features, vectorizer_type)
+    with open('mi_vocab/' + vectorizer_type + str(max_features) + '.txt', 'w') as f:
+        f.write(str(selected_vocab))
+
+    return selected_vocab
+
 def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, stops):
     feature_tfidf_vectorizer = TfidfVectorizer(
         max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
@@ -264,9 +317,10 @@ def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, s
 
 def write_results(results, result_filenames, result_folder):
     for i in range(len(results)):
-        with open(result_folder + '/'+ result_filenames[i] + '.json', 'a') as f:
-            w = json.dumps(results[i], indent=2)
-            f.write(w)    
+        with open('resultsGlove/' + result_filenames[i] + '.json', 'w') as f:
+            if results[i] != {}:
+                w = json.dumps(results[i], indent=2)
+                f.write(w)    
 
 def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     try:
@@ -352,6 +406,8 @@ if __name__ == "__main__":
 
     
 
+    # apply_log_reg(y_train, y_val, "glove" , X_train_vector, X_val_vector)
+    apply_svm(y_train, y_val, 'glove svm: ', X_train_vector, X_val_vector)
     # create models according to feature extraction by tf/idf
     # test_feature_params_with_model(X_train, X_val, y_train, y_val, stops)
     
