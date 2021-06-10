@@ -256,38 +256,38 @@ def apply_svm(y_train, y_val, key, training_data, validation_data):
     y_val = np.array(y_val)
 
     rbf_dict = {}
-    # for c in [0.0005, 0.5, 5, 50, 500, 5000]:
-    #     print('Current C value:', c)
-    #     scaler = StandardScaler()
-    #     training_data = scaler.fit_transform(training_data)
-    #     validation_data = scaler.fit_transform(validation_data)
-    #     SVM = svm.SVC(kernel='rbf', C=c)
-    #     SVM.fit(training_data, y_train)
-    #     rbf_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
-    # print(key, c, 'RBF accuracy:', rbf_dict)
+    for c in [0.0005, 0.5, 5, 50, 500, 5000]:
+        print('Current C value:', c)
+        # scaler = StandardScaler()
+        # training_data = scaler.fit_transform(training_data)
+        # validation_data = scaler.fit_transform(validation_data)
+        SVM = svm.SVC(kernel='rbf', C=c)
+        SVM.fit(training_data, y_train)
+        rbf_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+        print('Done!')
+    print(key, c, 'RBF accuracy:', rbf_dict)
     
     linear_dict = {}
-    # for c in range(1, 100, 1):
-    #     print('Current C value:', c)
-    #     SVM = make_pipeline(StandardScaler(), svm.LinearSVC(dual=False, C=c))
-    #     SVM.fit(training_data, y_train)
-    #     print(key, 'LINEAR accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
-    #     linear_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
+    for c in [0.0005, 0.5, 5, 50, 500, 5000]:
+        print('Current C value:', c)
+        SVM = svm.SVC(kernel='sigmoid', C=c)
+        SVM.fit(training_data, y_train)
+        print(key, 'LINEAR accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
+        linear_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+        print('Done!')
 
     polynomial_dict = {}
-    # for c in range(1, 100, 1):
-    #     print('Current C value:', c)
-    #     SVM = make_pipeline(StandardScaler(), svm.SVC(kernel='poly', C=c))
-    #     SVM.fit(training_data, y_train)
-    #     print(key, 'POLY accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
-    #     polynomial_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
+    for c in [0.0005, 0.5, 5, 50, 500, 5000]:
+        print('Current C value:', c)
+        SVM = svm.SVC(kernel='poly', C=c)
+        SVM.fit(training_data, y_train)
+        print(key, 'POLY accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
+        polynomial_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+        print('Done!')
 
         # print(key, c, 'POLY accuracy:', linear_dict)
 
-    write_results([rbf_dict, linear_dict, polynomial_dict], ['rbf_gloves', 'linear_gloves', 'polynomial_gloves'])
+    write_results([rbf_dict, linear_dict, polynomial_dict], ['rbf_gloves_new', 'sigmoid_gloves_new', 'polynomial_gloves_new'], 'results/')
     
 # writes mutual info vocab to file and returns the vocab.
 def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
@@ -317,7 +317,7 @@ def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, s
 
 def write_results(results, result_filenames, result_folder):
     for i in range(len(results)):
-        with open('resultsGlove/' + result_filenames[i] + '.json', 'w') as f:
+        with open(result_folder + result_filenames[i] + '.json', 'w') as f:
             if results[i] != {}:
                 w = json.dumps(results[i], indent=2)
                 f.write(w)    
@@ -351,7 +351,7 @@ def getGloveVectors(total_vocabulary):
             parts = line.split()
             word = parts[0].decode('utf-8')
             if word in total_vocabulary:
-                vector = np.array(parts[1:], dtype=np.float32)
+                vector = 100 * np.array(parts[1:], dtype=np.float32)
                 glove[word] = vector
     dim = len(glove[next(iter(glove))])
     print("getGloveVectors finished in time ",time.time()-start)
@@ -399,13 +399,12 @@ if __name__ == "__main__":
     gloveDict_val, dim = getGloveVectors(val_vocabulary)
     X_train_vector = gloveVectorizer(gloveDict_train, X_train, dim)
     X_val_vector = gloveVectorizer(gloveDict_val, X_val, dim)
+
     # X_train_norm = normalizeVector(X_train_vector)
     # X_val_norm = normalizeVector(X_val_vector)
-    apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
+   
+    # apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
     
-
-    
-
     # apply_log_reg(y_train, y_val, "glove" , X_train_vector, X_val_vector)
     apply_svm(y_train, y_val, 'glove svm: ', X_train_vector, X_val_vector)
     # create models according to feature extraction by tf/idf
