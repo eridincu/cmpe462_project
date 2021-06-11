@@ -10,6 +10,7 @@ import io
 import nltk
 import time
 import sys
+import io
 
 import numpy as np
 from nltk import tokenize
@@ -32,12 +33,16 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegressionCV
 from sklearn.ensemble import RandomForestRegressor
+
+from gensim.models import Word2Vec, KeyedVectors
 
 accuracy_dict_MNB = {}
 accuracy_dict_GNB = {}
 accuracy_dict_LOG_REG = {}
 accuracy_dict_LIN_REG = {}
+accuracy_dict_LOG_REG_CV = {}
 accuracy_dict_RFR = {}
 
 class Data():
@@ -127,10 +132,8 @@ def format_data(data):
 def write_to_txt(name, _list):
     print('Saving formatted data to txt...')
     txt_file = open(name, "w", encoding="utf-8")
-    count = 0
     for element in _list:
         txt_file.write(" ".join(element) + "\n")
-        count += 1
     txt_file.close()
     print('Done!\n')
 
@@ -142,21 +145,7 @@ def read_from_txt(name):
         _list.append(element.strip().split())
     return _list
 
-def apply_model_tfidf(y_train, y_val, key,processed_training_tfidf, processed_validation_tfidf):
-    print('Start applying models for', key, '...')
-    start = time.time()
-
-    apply_rfr(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf, 100)
-    
-    apply_mnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    apply_gnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    apply_log_reg(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    print('Done, exec time:', time.time() - start)
-
-def apply_model_Glove(y_train, y_val, key, X_train_vector, X_val_vector):
+def apply_model_wordEmbedding(y_train, y_val, key, X_train_vector, X_val_vector):
     print('Start applying models for', key, '...')
     start = time.time()
 
@@ -165,6 +154,8 @@ def apply_model_Glove(y_train, y_val, key, X_train_vector, X_val_vector):
     apply_gnb(y_train, y_val, key, X_train_vector, X_val_vector)
 
     apply_log_reg(y_train, y_val, key, X_train_vector, X_val_vector)
+
+    # apply_log_reg_cv(y_train, y_val, key, X_train_vector, X_val_vector)
     
     apply_lin_reg(y_train, y_val, key, X_train_vector, X_val_vector)
 
@@ -197,12 +188,29 @@ def apply_log_reg(y_train, y_val, key, training_data, validation_data):
     global accuracy_dict_LOG_REG
 
     print('Applying LRC to', key, '...')
+    # solvers = ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']
+    # C = [0.001, 0.1, 1, 2, 3, 4, 10, 50]
+    # for solver in solvers:
+    #     for c in C:
+
+
     LR = LogisticRegression(max_iter=100000, n_jobs=-1)
     # LR = LogisticRegressionCV(cv=5, max_iter=100000, n_jobs=-1)
     LR.fit(training_data, y_train)
 
     score = LR.score(validation_data, y_val)
     accuracy_dict_LOG_REG[key] = score
+    
+def apply_log_reg_cv(y_train, y_val, key, training_data, validation_data):
+    global accuracy_dict_LOG_REG_CV
+
+    print('Applying LRC to', key, '...')
+    # LR = LogisticRegression(max_iter=100000, n_jobs=-1)
+    LR = LogisticRegressionCV(cv=5, max_iter=100000, n_jobs=-1)
+    LR.fit(training_data, y_train)
+
+    score = LR.score(validation_data, y_val)
+    accuracy_dict_LOG_REG_CV[key] = score
 
 def apply_lin_reg(y_train, y_val, key, training_data, validation_data):
     global accuracy_dict_LIN_REG
@@ -248,6 +256,37 @@ def apply_mnb(y_train, y_val, key, training_data, validation_data):
     accuracy_dict_MNB[key] = accuracy_score(
         y_val, MNB.predict(validation_data))
 
+def apply_svm(y_train, y_val, key, training_data, validation_data):
+    y_train = np.array(y_train)
+    y_val = np.array(y_val)
+    c_list = [0.0005, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50, 500, 5000]
+    gamma = 0.043
+    rbf_dict = {}
+    for c in c_list:
+        SVM = svm.SVC(kernel='rbf', C=c, gamma=gamma)
+        SVM.fit(training_data, y_train)
+        rbf_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+    
+    sigmoid_dict = {}
+    for c in c_list:
+        SVM = svm.SVC(kernel='sigmoid', C=c, gamma=gamma)
+        SVM.fit(training_data, y_train)
+        sigmoid_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+
+    polynomial_dict = {}
+    for c in c_list:
+        SVM = svm.SVC(kernel='poly', C=c, gamma=gamma)
+        SVM.fit(training_data, y_train)
+        polynomial_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+
+    linear_dict = {}
+    for c in c_list:
+        SVM = svm.SVC(kernel='linear', C=c, gamma=gamma)
+        SVM.fit(training_data, y_train)
+        linear_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
+
+    write_results([rbf_dict, sigmoid_dict, polynomial_dict, linear_dict], [f"rbf_{key}_gamma_{gamma}", f'sigmoid_{key}_gamma_{gamma}', f'polynomial_{key}_gamma_{gamma}', f'linear_{key}_gamma_{gamma}'], 'resultsWord2Vec/')
+
 def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, stops):
     feature_tfidf_vectorizer = TfidfVectorizer(
         max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
@@ -291,15 +330,16 @@ def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     
     return X, y
 
-def getGloveVectors(total_vocabulary):  
+def getGloveVectors(vocabulary, _dim):  
     start = time.time()  
-    print("getGloveVectors started")   
+    print("getGloveVectors started") 
+    glove_folder = "glove.twitter.27B"
     glove = {}
-    with open('glove.840B.300d.txt', 'rb') as f:
+    with open(f'{glove_folder}/{glove_folder}.{_dim}d.txt', 'rb') as f:
         for line in f:
             parts = line.split()
             word = parts[0].decode('utf-8')
-            if word in total_vocabulary:
+            if word in vocabulary:
                 vector = np.array(parts[1:], dtype=np.float32)
                 glove[word] = vector
     dim = len(glove[next(iter(glove))])
@@ -307,12 +347,70 @@ def getGloveVectors(total_vocabulary):
 
     return glove, dim
 
-def gloveVectorizer(glove, X, dimension):
+def getFasttextVectors(vocabulary):
     start = time.time()  
-    print("gloveVectorizer started")   
-    X_vector = np.array([np.mean([glove[w] for w in words if w in glove] or [np.zeros(dimension)], axis=0) for words in X])
-    print("gloveVectorizer finished in time ",time.time()-start)
+    print("getFasttextVectors started")   
+    fastText = {}
+    fin = io.open("crawl-300d-2M.vec", 'r', encoding='utf-8', newline='\n', errors='ignore')
+    n, dim = map(int, fin.readline().split())
+    data = {}
+    for line in fin:
+        parts = line.rstrip().split(' ')
+        word = parts[0]
+        if word in vocabulary:
+            vector = np.array(parts[1:], dtype=np.float32)
+            fastText[word] = vector
+
+    print("getFasttextVectors finished in time ",time.time()-start)
+    
+    return fastText, dim
+
+def getWord2VecVectors(vocabulary, model):  
+    start = time.time()  
+    print("getWord2VecVectors started") 
+    word2Vec = {}
+    
+    for word in vocabulary:
+        try:
+            vector = model[word]
+            word2Vec[word] = vector
+        except:
+            print(word)
+    dim = len(word2Vec[next(iter(word2Vec))])
+    print("getWord2VecVectors finished in time ",time.time()-start)
+
+    return word2Vec, dim
+
+def wordEmbeddingVectorizer(dict, X, dimension):
+    start = time.time()  
+    print("wordEmbeddingVectorizer started")   
+    X_vector = np.array([np.mean([dict[w] for w in words if w in dict] or [np.zeros(dimension)], axis=0) for words in X])
+    print("wordEmbeddingVectorizer finished in time ",time.time()-start)
     return X_vector
+
+def wordEmbeddingVectorizer_TFIDF(dict, X, dimension, vocab, tfIDF):
+    start = time.time()  
+    X_vector = []
+    print("wordEmbeddingVectorizer started")   
+    for i, words in enumerate(X):
+        words = set(words)
+        sumTFIDF = sum(tfIDF[i])
+        for w in words:
+            try:
+                index = vocab[w]
+            except: 
+                continue            
+            total =  np.zeros(dimension)
+            try:
+                total += dict[w] * tfIDF[i][index]
+            except:
+                continue
+
+        avgVector = total / sumTFIDF
+        X_vector.append(avgVector)
+
+    print("wordEmbeddingVectorizer finished in time ",time.time()-start)
+    return np.array(X_vector)
 
 def normalizeVector(X):
     return (X - X.min()) / (X.max() - X.min())
@@ -373,6 +471,30 @@ def bert():
 
     print(lr_clf.score(features_val, y_val))  
 
+def TFIDFselection(X_train, X_val):
+    X_train_sentence = []
+    X_val_sentence = []
+
+    for tokens in X_train:
+        X_train_sentence.append(" ".join(tokens))
+    
+    for tokens in X_val:
+        X_val_sentence.append(" ".join(tokens))
+
+    feature_tfidf_vectorizer = TfidfVectorizer()
+
+    processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
+        X_train_sentence).toarray()
+
+    vocab_tfidf = feature_tfidf_vectorizer.vocabulary_
+
+    validation_tfidf_vectorizer = TfidfVectorizer(vocabulary=vocab_tfidf)
+
+    processed_val_tfidf = validation_tfidf_vectorizer.fit_transform(
+        X_val_sentence).toarray()
+
+    return processed_training_tfidf, processed_val_tfidf, vocab_tfidf
+    
 if __name__ == "__main__":
     training_data = []
     validation_data = []
@@ -398,46 +520,57 @@ if __name__ == "__main__":
      # validation data
     X_val, y_val = initialize_data('VAL', 'x_val.txt', 'y_val.txt', X_val, y_val, stops)
     print('Initialization done!')
+    processed_training_tfidf, processed_val_tfidf, vocab_tfidf = TFIDFselection(X_train, X_val)
+
     train_vocabulary = set(word for document in X_train for word in document)
     val_vocabulary = set(word for document in X_val for word in document)
-    gloveDict_train, dim = getGloveVectors(train_vocabulary)
-    gloveDict_val, dim = getGloveVectors(val_vocabulary)
-    X_train_vector = gloveVectorizer(gloveDict_train, X_train, dim)
-    X_val_vector = gloveVectorizer(gloveDict_val, X_val, dim)
 
+    # glove Twitter
+    # dim_list = [25, 50, 100, 200]
+    # for _dim in dim_list:
 
+    #     gloveDict_train, dim = getGloveVectors(train_vocabulary, _dim)
+    #     gloveDict_val, dim = getGloveVectors(val_vocabulary, _dim)
+    #     X_train_vector = wordEmbeddingVectorizer(gloveDict_train, X_train, dim)
+    #     X_val_vector = wordEmbeddingVectorizer(gloveDict_val, X_val, dim)
+    #     apply_model_wordEmbedding(y_train, y_val, f'twitter_{_dim}', X_train_vector, X_val_vector)
 
+    # Load pretrained model (since intermediate data is not included, the model cannot be refined with additional data)
+    # model = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True)
+    
+    # word2Vec_train, dim = getWord2VecVectors(train_vocabulary, model)
+    # word2Vec_val, dim = getWord2VecVectors(val_vocabulary, model)
+    # X_train_vector_w2v = wordEmbeddingVectorizer(word2Vec_train, X_train, dim)
+    # X_val_vector_w2v = wordEmbeddingVectorizer(word2Vec_val, X_val, dim)
 
+    # gloveDict_train, dim = getGloveVectors(train_vocabulary)
+    # gloveDict_val, dim = getGloveVectors(val_vocabulary)
+    # X_train_vector = wordEmbeddingVectorizer(gloveDict_train, X_train, dim)
+    # X_val_vector = wordEmbeddingVectorizer(gloveDict_val, X_val, dim)
 
-
-
-
-
+    # fastTextDict_train, dim = getFasttextVectors(train_vocabulary)
+    # fastTextDict_val, dim = getFasttextVectors(val_vocabulary)
+    # X_train_vector = wordEmbeddingVectorizer(fastTextDict_train, X_train, dim)
+    # X_val_vector = wordEmbeddingVectorizer(fastTextDict_val, X_val, dim)
     # X_train_norm = normalizeVector(X_train_vector)
     # X_val_norm = normalizeVector(X_val_vector)
-    apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
-    
 
+    # apply_model_wordEmbedding(y_train, y_val, 'word2Vec', X_train_vector_w2v, X_val_vector_w2v)
+    # apply_model_wordEmbedding(y_train, y_val, 'fastText', X_train_vector, X_val_vector)
+    # apply_model_wordEmbedding(y_train, y_val, 'gloveTwitter', X_train_vector, X_val_vector)
     
-
-    # create models according to feature extraction by tf/idf
-    # test_feature_params_with_model(X_train, X_val, y_train, y_val, stops)
+    # apply_log_reg(y_train, y_val, "fastText" , X_train_vector, X_val_vector)
+    # apply_svm(y_train, y_val, 'word2Vec', X_train_vector, X_val_vector)
     
-    # Sort results and write them to file
-    # accuracy_dict_GNB = sorted(
-    #     accuracy_dict_GNB.items(), key=lambda x: x[1], reverse=True)
+    fastTextDict_train, dim = getFasttextVectors(train_vocabulary)
+ 
+    X_train_vector = wordEmbeddingVectorizer_TFIDF(fastTextDict_train, X_train, dim, vocab_tfidf, processed_training_tfidf)
+    X_val_vector = wordEmbeddingVectorizer_TFIDF(fastTextDict_train, X_val, dim, vocab_tfidf, processed_val_tfidf)
     
-    # accuracy_dict_MNB = sorted(
-    #     accuracy_dict_MNB.items(), key=lambda x: x[1], reverse=True)
-    
-    # accuracy_dict_LOG_REG = sorted(
-    #     accuracy_dict_LOG_REG.items(), key=lambda x: x[1], reverse=True)
-    
-    # accuracy_dict_RFR = sorted(
-    #     accuracy_dict_RFR.items(), key=lambda x: x[1], reverse=True)
+    apply_model_wordEmbedding(y_train, y_val, 'fastText_TFIDF', X_train_vector, X_val_vector)
     
     # prepare the data, and print the results to a file
     accuracy_dict_list = [accuracy_dict_GNB, accuracy_dict_LOG_REG, accuracy_dict_RFR, accuracy_dict_LIN_REG]
     accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_LOG_REG', 'result_accuracy_dict_RFR','result_accuracy_dict_LIN_REG']
 
-    write_results(accuracy_dict_list, accuracy_dict_list_names, "resultsGlove2")
+    write_results(accuracy_dict_list, accuracy_dict_list_names, "final_results_tfidf/")
