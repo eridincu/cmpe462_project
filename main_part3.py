@@ -19,22 +19,20 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import wordnet
 
+import torch
+import transformers as ppb
+
 from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.feature_selection import mutual_info_classif
 
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-
-from sklearn import svm
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.utils import validation
 
 accuracy_dict_MNB = {}
 accuracy_dict_GNB = {}
@@ -250,54 +248,6 @@ def apply_mnb(y_train, y_val, key, training_data, validation_data):
     accuracy_dict_MNB[key] = accuracy_score(
         y_val, MNB.predict(validation_data))
 
-
-def apply_svm(y_train, y_val, key, training_data, validation_data):
-    y_train = np.array(y_train)
-    y_val = np.array(y_val)
-
-    rbf_dict = {}
-    # for c in [0.0005, 0.5, 5, 50, 500, 5000]:
-    #     print('Current C value:', c)
-    #     scaler = StandardScaler()
-    #     training_data = scaler.fit_transform(training_data)
-    #     validation_data = scaler.fit_transform(validation_data)
-    #     SVM = svm.SVC(kernel='rbf', C=c)
-    #     SVM.fit(training_data, y_train)
-    #     rbf_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
-    # print(key, c, 'RBF accuracy:', rbf_dict)
-    
-    linear_dict = {}
-    # for c in range(1, 100, 1):
-    #     print('Current C value:', c)
-    #     SVM = make_pipeline(StandardScaler(), svm.LinearSVC(dual=False, C=c))
-    #     SVM.fit(training_data, y_train)
-    #     print(key, 'LINEAR accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
-    #     linear_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
-
-    polynomial_dict = {}
-    # for c in range(1, 100, 1):
-    #     print('Current C value:', c)
-    #     SVM = make_pipeline(StandardScaler(), svm.SVC(kernel='poly', C=c))
-    #     SVM.fit(training_data, y_train)
-    #     print(key, 'POLY accuracy:', accuracy_score(y_val, SVM.predict(validation_data)))
-    #     polynomial_dict[str(c)] = accuracy_score(y_val, SVM.predict(validation_data))
-    #     print('Done!')
-
-        # print(key, c, 'POLY accuracy:', linear_dict)
-
-    write_results([rbf_dict, linear_dict, polynomial_dict], ['rbf_gloves', 'linear_gloves', 'polynomial_gloves'])
-    
-# writes mutual info vocab to file and returns the vocab.
-def write_and_get_mutual_info_vocab(max_features, vectorizer_type, stops, X, y):
-    selected_vocab = mutual_info_feature_selection(
-        stops, X, y, max_features, vectorizer_type)
-    with open('mi_vocab/' + vectorizer_type + str(max_features) + '.txt', 'w') as f:
-        f.write(str(selected_vocab))
-
-    return selected_vocab
-
 def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, stops):
     feature_tfidf_vectorizer = TfidfVectorizer(
         max_features=max_features, max_df=max_df, min_df=min_df, stop_words=stops)
@@ -317,10 +267,9 @@ def extract_features_with_params(X_train, X_val, max_features, max_df, min_df, s
 
 def write_results(results, result_filenames, result_folder):
     for i in range(len(results)):
-        with open('resultsGlove/' + result_filenames[i] + '.json', 'w') as f:
-            if results[i] != {}:
-                w = json.dumps(results[i], indent=2)
-                f.write(w)    
+        with open(result_folder + '/'+ result_filenames[i] + '.json', 'a') as f:
+            w = json.dumps(results[i], indent=2)
+            f.write(w)    
 
 def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     try:
@@ -368,6 +317,62 @@ def gloveVectorizer(glove, X, dimension):
 def normalizeVector(X):
     return (X - X.min()) / (X.max() - X.min())
 
+
+
+def bert():
+    model_class, tokenizer_class, pretrained_weights = (ppb.DistilBertModel, ppb.DistilBertTokenizer, 'distilbert-base-uncased')
+    tokenizer = tokenizer_class.from_pretrained(pretrained_weights)
+    model = model_class.from_pretrained(pretrained_weights)
+    X_train_sent = []
+    X_val_sent = []
+    for d in X_train:
+        X_train_sent.append(" ".join(d))
+    for d in X_val:
+        X_val_sent.append(" ".join(d))
+    X_train_sent = np.array(X_train_sent)
+    X_val_sent = np.array(X_val_sent)
+    tokenized = []
+    for d in X_train_sent:
+        tokenized.append(tokenizer.encode(d, add_special_tokens=True, truncation=True))
+    max_len = 0
+    for i in tokenized:
+        if len(i) > max_len:
+            max_len = len(i)
+
+    padded = np.array([i + [0]*(max_len-len(i)) for i in tokenized])
+    print(np.shape(padded))
+    attention_mask = np.where(padded != 0, 1, 0)
+    input_ids = torch.tensor(padded)  
+    attention_mask = torch.tensor(attention_mask)
+
+    with torch.no_grad():
+        last_hidden_states = model(input_ids, attention_mask=attention_mask)
+
+    features = last_hidden_states[0][:,0,:].numpy()
+
+    lr_clf = LogisticRegression()
+    lr_clf.fit(features, y_train)  
+    tokenized_val = []
+    for d in X_val_sent:
+        tokenized_val.append(tokenizer.encode(d, add_special_tokens=True,truncation=True))
+    max_len_val = 0
+    for i in tokenized_val:
+        if len(i) > max_len_val:
+            max_len_val = len(i)
+
+
+    padded_val = np.array([i + [0]*(max_len_val-len(i)) for i in tokenized_val])
+    attention_mask_val = np.where(padded_val != 0, 1, 0)
+    input_ids_val = torch.tensor(padded_val)  
+    attention_mask_val = torch.tensor(attention_mask_val)
+
+    with torch.no_grad():
+        last_hidden_states_val = model(input_ids_val, attention_mask=attention_mask_val)
+
+    features_val = last_hidden_states_val[0][:,0,:].numpy()
+
+    print(lr_clf.score(features_val, y_val))  
+
 if __name__ == "__main__":
     training_data = []
     validation_data = []
@@ -399,6 +404,15 @@ if __name__ == "__main__":
     gloveDict_val, dim = getGloveVectors(val_vocabulary)
     X_train_vector = gloveVectorizer(gloveDict_train, X_train, dim)
     X_val_vector = gloveVectorizer(gloveDict_val, X_val, dim)
+
+
+
+
+
+
+
+
+
     # X_train_norm = normalizeVector(X_train_vector)
     # X_val_norm = normalizeVector(X_val_vector)
     apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
@@ -406,8 +420,6 @@ if __name__ == "__main__":
 
     
 
-    # apply_log_reg(y_train, y_val, "glove" , X_train_vector, X_val_vector)
-    apply_svm(y_train, y_val, 'glove svm: ', X_train_vector, X_val_vector)
     # create models according to feature extraction by tf/idf
     # test_feature_params_with_model(X_train, X_val, y_train, y_val, stops)
     
