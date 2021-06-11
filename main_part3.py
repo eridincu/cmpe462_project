@@ -10,6 +10,7 @@ import io
 import nltk
 import time
 import sys
+import io
 
 import numpy as np
 from nltk import tokenize
@@ -29,12 +30,14 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegressionCV
 from sklearn.ensemble import RandomForestRegressor
 
 accuracy_dict_MNB = {}
 accuracy_dict_GNB = {}
 accuracy_dict_LOG_REG = {}
 accuracy_dict_LIN_REG = {}
+accuracy_dict_LOG_REG_CV = {}
 accuracy_dict_RFR = {}
 
 class Data():
@@ -124,10 +127,8 @@ def format_data(data):
 def write_to_txt(name, _list):
     print('Saving formatted data to txt...')
     txt_file = open(name, "w", encoding="utf-8")
-    count = 0
     for element in _list:
         txt_file.write(" ".join(element) + "\n")
-        count += 1
     txt_file.close()
     print('Done!\n')
 
@@ -139,21 +140,7 @@ def read_from_txt(name):
         _list.append(element.strip().split())
     return _list
 
-def apply_model_tfidf(y_train, y_val, key,processed_training_tfidf, processed_validation_tfidf):
-    print('Start applying models for', key, '...')
-    start = time.time()
-
-    apply_rfr(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf, 100)
-    
-    apply_mnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    apply_gnb(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    apply_log_reg(y_train, y_val, 'tfidf ' + key, processed_training_tfidf, processed_validation_tfidf)
-
-    print('Done, exec time:', time.time() - start)
-
-def apply_model_Glove(y_train, y_val, key, X_train_vector, X_val_vector):
+def apply_model_wordEmbedding(y_train, y_val, key, X_train_vector, X_val_vector):
     print('Start applying models for', key, '...')
     start = time.time()
 
@@ -162,6 +149,8 @@ def apply_model_Glove(y_train, y_val, key, X_train_vector, X_val_vector):
     apply_gnb(y_train, y_val, key, X_train_vector, X_val_vector)
 
     apply_log_reg(y_train, y_val, key, X_train_vector, X_val_vector)
+
+    # apply_log_reg_cv(y_train, y_val, key, X_train_vector, X_val_vector)
     
     apply_lin_reg(y_train, y_val, key, X_train_vector, X_val_vector)
 
@@ -200,6 +189,17 @@ def apply_log_reg(y_train, y_val, key, training_data, validation_data):
 
     score = LR.score(validation_data, y_val)
     accuracy_dict_LOG_REG[key] = score
+    
+def apply_log_reg_cv(y_train, y_val, key, training_data, validation_data):
+    global accuracy_dict_LOG_REG_CV
+
+    print('Applying LRC to', key, '...')
+    # LR = LogisticRegression(max_iter=100000, n_jobs=-1)
+    LR = LogisticRegressionCV(cv=5, max_iter=100000, n_jobs=-1)
+    LR.fit(training_data, y_train)
+
+    score = LR.score(validation_data, y_val)
+    accuracy_dict_LOG_REG_CV[key] = score
 
 def apply_lin_reg(y_train, y_val, key, training_data, validation_data):
     global accuracy_dict_LIN_REG
@@ -288,7 +288,7 @@ def initialize_data(directory_name, file_name_X, file_name_y, X, y,stops):
     
     return X, y
 
-def getGloveVectors(total_vocabulary):  
+def getGloveVectors(vocabulary):  
     start = time.time()  
     print("getGloveVectors started")   
     glove = {}
@@ -296,7 +296,7 @@ def getGloveVectors(total_vocabulary):
         for line in f:
             parts = line.split()
             word = parts[0].decode('utf-8')
-            if word in total_vocabulary:
+            if word in vocabulary:
                 vector = np.array(parts[1:], dtype=np.float32)
                 glove[word] = vector
     dim = len(glove[next(iter(glove))])
@@ -304,16 +304,50 @@ def getGloveVectors(total_vocabulary):
 
     return glove, dim
 
-def gloveVectorizer(glove, X, dimension):
+def getFasttextVectors(vocabulary):
     start = time.time()  
-    print("gloveVectorizer started")   
-    X_vector = np.array([np.mean([glove[w] for w in words if w in glove] or [np.zeros(dimension)], axis=0) for words in X])
-    print("gloveVectorizer finished in time ",time.time()-start)
+    print("getFasttextVectors started")   
+    fastText = {}
+    fin = io.open("crawl-300d-2M.vec", 'r', encoding='utf-8', newline='\n', errors='ignore')
+    n, dim = map(int, fin.readline().split())
+    data = {}
+    for line in fin:
+        parts = line.rstrip().split(' ')
+        word = parts[0]
+        if word in vocabulary:
+            vector = np.array(parts[1:], dtype=np.float32)
+            fastText[word] = vector
+
+    print("getFasttextVectors finished in time ",time.time()-start)
+    
+    return fastText, dim
+
+def wordEmbeddingVectorizer(dict, X, dimension):
+    start = time.time()  
+    print("wordEmbeddingVectorizer started")   
+    X_vector = np.array([np.mean([dict[w] for w in words if w in dict] or [np.zeros(dimension)], axis=0) for words in X])
+    print("wordEmbeddingVectorizer finished in time ",time.time()-start)
     return X_vector
 
 def normalizeVector(X):
     return (X - X.min()) / (X.max() - X.min())
 
+def TFIDFselection(X_train):
+    X_train_sentence = []
+
+    for tokens in X_train:
+        X_train_sentence.append(" ".join(tokens))
+
+    feature_tfidf_vectorizer = TfidfVectorizer(
+        max_features=1780)
+
+    processed_training_tfidf = feature_tfidf_vectorizer.fit_transform(
+        X_train_sentence).toarray()
+
+    vocab_tfidf = feature_tfidf_vectorizer.vocabulary_
+
+    return vocab_tfidf
+    
 if __name__ == "__main__":
     training_data = []
     validation_data = []
@@ -339,15 +373,23 @@ if __name__ == "__main__":
      # validation data
     X_val, y_val = initialize_data('VAL', 'x_val.txt', 'y_val.txt', X_val, y_val, stops)
     print('Initialization done!')
-    train_vocabulary = set(word for document in X_train for word in document)
-    val_vocabulary = set(word for document in X_val for word in document)
-    gloveDict_train, dim = getGloveVectors(train_vocabulary)
-    gloveDict_val, dim = getGloveVectors(val_vocabulary)
-    X_train_vector = gloveVectorizer(gloveDict_train, X_train, dim)
-    X_val_vector = gloveVectorizer(gloveDict_val, X_val, dim)
+    tf_idf_vocab = TFIDFselection(X_train)
+    # train_vocabulary = set(word for document in X_train for word in document)
+    # val_vocabulary = set(word for document in X_val for word in document)
+
+    # gloveDict_train, dim = getGloveVectors(train_vocabulary)
+    # gloveDict_val, dim = getGloveVectors(val_vocabulary)
+    # X_train_vector_glove = wordEmbeddingVectorizer(gloveDict_train, X_train, dim)
+    # X_val_vector_glove = wordEmbeddingVectorizer(gloveDict_val, X_val, dim)
+
+    fastTextDict_train, dim = getFasttextVectors(tf_idf_vocab)
+    # fastTextDict_val, dim = getFasttextVectors(val_vocabulary)
+    X_train_vector = wordEmbeddingVectorizer(fastTextDict_train, X_train, dim)
+    X_val_vector = wordEmbeddingVectorizer(fastTextDict_train, X_val, dim)
     # X_train_norm = normalizeVector(X_train_vector)
     # X_val_norm = normalizeVector(X_val_vector)
-    apply_model_Glove(y_train, y_val, 'glove_norm', X_train_vector, X_train_vector)
+    # apply_model_wordEmbedding(y_train, y_val, 'glove', X_train_vector_glove, X_val_vector_glove)
+    apply_model_wordEmbedding(y_train, y_val, 'fastText_TFIDF', X_train_vector, X_val_vector)
     
 
     
@@ -369,7 +411,7 @@ if __name__ == "__main__":
     #     accuracy_dict_RFR.items(), key=lambda x: x[1], reverse=True)
     
     # prepare the data, and print the results to a file
-    accuracy_dict_list = [accuracy_dict_GNB, accuracy_dict_LOG_REG, accuracy_dict_RFR, accuracy_dict_LIN_REG]
-    accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_LOG_REG', 'result_accuracy_dict_RFR','result_accuracy_dict_LIN_REG']
+    accuracy_dict_list = [accuracy_dict_GNB, accuracy_dict_LOG_REG, accuracy_dict_RFR, accuracy_dict_LIN_REG, accuracy_dict_LOG_REG_CV]
+    accuracy_dict_list_names = ['result_accuracy_dict_GNB', 'result_accuracy_dict_LOG_REG', 'result_accuracy_dict_RFR','result_accuracy_dict_LIN_REG','result_accuracy_dict_LOG_REG_CV']
 
     write_results(accuracy_dict_list, accuracy_dict_list_names, "resultsGlove2")
