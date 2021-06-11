@@ -1,3 +1,15 @@
 .vscode/
 glove.840B.300d.txt
 crawl-300d-2M.vec
+glove.twitter.27B/
+final_results/
+final_results_tfidf/
+mi_vocab/
+results/
+results_aa/
+resultsGloveTwitter/
+resultsLOGREG/
+resultsSVM/
+resultsSVM_gloveTwitter/
+resultsWord2Vec/
+GoogleNews-vectors-negative300.bin
